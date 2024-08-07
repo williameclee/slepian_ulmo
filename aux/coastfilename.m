@@ -1,19 +1,19 @@
-function [dataFile, dataFolder, fileExists] = ...
-        coastfilename(region, varargin)
+function [dataPath, dataFolder, fileExists] = ...
+        coastfilename(domain, varargin)
     p = inputParser;
-    addRequired(p, 'region');
-    addOptional(p, 'upscale', 0, ...
+    addRequired(p, 'Domain');
+    addOptional(p, 'Upscale', 0, ...
         @(x) isnumeric(x) || isempty(x));
-    addOptional(p, 'buffer', 0);
-    addOptional(p, 'inclang', 90, ...
+    addOptional(p, 'Buffer', 0);
+    addOptional(p, 'Latlim', 90, ...
         @(x) isnumeric(x) && length(x) <= 2);
-    addOptional(p, 'MoreBuffer', []);
-    parse(p, region, varargin{:});
-    region = p.Results.region;
-    upscale = p.Results.upscale;
-    inclang = p.Results.inclang;
-    buf = p.Results.buffer;
-    moreBuf = p.Results.MoreBuffer;
+    addOptional(p, 'MoreBuffers', []);
+    parse(p, domain, varargin{:});
+    domain = p.Results.Domain;
+    upscale = p.Results.Upscale;
+    latlim = p.Results.Latlim;
+    buf = p.Results.Buffer;
+    moreBuf = p.Results.MoreBuffers;
 
     %% Find the data folder
     dataFolder = fullfile(getenv('COASTS'));
@@ -22,11 +22,17 @@ function [dataFile, dataFolder, fileExists] = ...
         dataFolder = fullfile(getenv('IFILES'), 'COASTS');
     end
 
-    dataFileAttr = dataattrchar('Upscale', upscale, 'Buffer', buf, 'Inclang', inclang, 'MoreBuffer', moreBuf);
+    if isa(domain, 'GeoDomain')
+        dataFile = [domain.Id, '.mat'];
+    else
+        dataFileAttr = dataattrchar('Upscale', upscale, 'Buffer', buf, ...
+            'Latlim', latlim, 'MoreBuffers', moreBuf);
 
-    dataFile = [capitalise(region), '-', dataFileAttr, '.mat'];
-    dataFile = fullfile(dataFolder, dataFile);
+        dataFile = [capitalise(domain), '-', dataFileAttr, '.mat'];
+    end
 
-    fileExists = exist(dataFile, 'file') == 2;
+    dataPath = fullfile(dataFolder, dataFile);
+
+    fileExists = exist(dataPath, 'file') == 2;
 
 end

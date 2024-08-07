@@ -4,7 +4,7 @@ classdef GeoDomain
         Domain string;
         Upscale(1, 1) double {mustBeNumeric};
         Buffer(1, 1) double {mustBeNumeric};
-        Inclination(1, 2) double {mustBeNumeric};
+        Latlim(1, 2) double {mustBeNumeric};
         MoreBuffers cell;
         NearBy(1, 1) logical;
     end
@@ -23,9 +23,9 @@ classdef GeoDomain
 
             % Find out how many elements are should be in the object
             % Also turn the inputs into the right size
-            [nObjects, domain, upscale, buf, inclang, moreBuf, nearby] = ...
+            [nObjects, domain, upscale, buf, latlim, moreBuf, nearby] = ...
                 noutputs(lower(Inputs.Domain), Inputs.Upscale, ...
-                Inputs.Buffer, Inputs.Inclination, ...
+                Inputs.Buffer, Inputs.Latlim, ...
                 Inputs.MoreBuffers, Inputs.NearBy);
 
             % Whether to use default parameters
@@ -40,24 +40,27 @@ classdef GeoDomain
 
             % Assign the domain values for each object
             for i = 1:nObjects
-                obj(i) = assigndomainvalues(domain(i), upscale(i), buf(i), inclang(i, :), nearby(i), moreBuf{i}, ...
+                obj(i) = assigndomainvalues(domain(i), upscale(i), ...
+                    buf(i), latlim(i, :), nearby(i), moreBuf{i}, ...
                     useDefaultParams);
             end
 
         end
 
+        % The identifier for file names, etc.
         function id = Id(obj)
             id = ...
-                [capitalise(obj.Domain), dataattrchar( ...
+                [capitalise(char(obj.Domain)), dataattrchar( ...
                  "Upscale", obj.Upscale, "Buffer", obj.Buffer, ...
-                 "Inclang", obj.Inclination, "MoreBuffer", obj.MoreBuffers)];
+                 "Latlim", obj.Latlim, "MoreBuffers", obj.MoreBuffers)];
         end
 
         % Display name
         function displayName = DisplayName(obj, varargin)
             p = inputParser;
             addOptional(p, 'Format', 'short', ...
-                @(x) (ischar(x) || isstring(x)) && ismember(lower(x), {'short', 'long'}));
+                @(x) (ischar(x) || isstring(x)) && ...
+                ismember(lower(x), {'short', 'long'}));
             parse(p, varargin{:});
             format = p.Results.Format;
 
@@ -65,20 +68,23 @@ classdef GeoDomain
 
         end
 
-        % Longitude and latitude
+        % Longitude and latitude arrays
         function lonlat = Lonlat(obj, varargin)
             p = inputParser;
-            addParameter(p, 'RotateBack', false, @(x) islogical(x) || isnumeric(x));
+            addParameter(p, 'RotateBack', false, ...
+                @(x) islogical(x) || isnumeric(x));
             parse(p, varargin{:});
             rotateBack = logical(p.Results.RotateBack);
 
             if ~strcmp(obj.Domain, 'antarctica') && rotateBack
                 rotateBack = false;
-                warning('RotateBack is only supported for Antarctica');
+                warning('GeoDomain:unsupportedRotateBack', ...
+                'RotateBack is only supported for Antarctica');
             end
 
-            lonlat = feval(obj.Domain, "Upscale", obj.Upscale, "Buffer", obj.Buffer, ...
-                "Inclang", obj.Inclination, "MoreBuffer", obj.MoreBuffers, "RotateBack", rotateBack);
+            lonlat = feval(obj.Domain, "Upscale", obj.Upscale, ...
+                "Buffer", obj.Buffer, "Latlim", obj.Latlim, ...
+                "MoreBuffers", obj.MoreBuffers, "RotateBack", rotateBack);
 
             if nargout > 0
                 return
@@ -124,7 +130,7 @@ function Inputs = parseinputs(varargin)
         @(x) ischar(x) || isstring(x) || iscell(x));
     addOptional(p, 'Upscale', [], @(x) isnumeric(x) || isempty(x));
     addOptional(p, 'Buffer', [], @(x) isnumeric(x) || isempty(x));
-    addOptional(p, 'Inclination', [], ...
+    addOptional(p, 'Latlim', [], ...
         @(x) (isnumeric(x) && length(x) <= 2) ...
         || isempty(x) || strcmpi(x, 'default'));
     addOptional(p, 'MoreBuffers', {}, ...
@@ -138,8 +144,8 @@ function Inputs = parseinputs(varargin)
 end
 
 % Find out how many elements are should be in the object
-function [nObjects, domain, upscale, buf, inclang, moreBuf, nearby] = ...
-        noutputs(domain, upscale, buf, inclang, moreBuf, nearby)
+function [nObjects, domain, upscale, buf, latlim, moreBuf, nearby] = ...
+        noutputs(domain, upscale, buf, latlim, moreBuf, nearby)
 
     if iscell(domain) || isstring(domain)
         nDomains = length(domain);
@@ -169,32 +175,32 @@ function [nObjects, domain, upscale, buf, inclang, moreBuf, nearby] = ...
         buf = nan;
     end
 
-    if isempty(inclang) || strcmpi(inclang, 'default')
-        inclang = [nan, nan];
-        nInclinations = 1;
+    if isempty(latlim) || strcmpi(latlim, 'default')
+        latlim = [nan, nan];
+        nLatlims = 1;
     else
 
-        if ndims(inclang) >= 2
+        if ~isscalar(latlim)
 
-            if size(inclang, 1) > 1
-                nInclinations = size(inclang, 1);
+            if size(latlim, 1) > 1
+                nLatlims = size(latlim, 1);
 
-                if size(inclang, 2) == 1
-                    inclang = inclang * [-1, 1];
+                if size(latlim, 2) == 1
+                    latlim = latlim * [-1, 1];
                 end
 
-            elseif size(inclang, 1) == 2 && size(inclang, 2) > 2
-                nInclinations = size(inclang, 2);
-                inclang = inclang';
-            elseif isequal(size(inclang), [1, 2])
-                nInclinations = 1;
+            elseif size(latlim, 1) == 2 && size(latlim, 2) > 2
+                nLatlims = size(latlim, 2);
+                latlim = latlim';
+            elseif isequal(size(latlim), [1, 2])
+                nLatlims = 1;
             else
-                error('The inclination must be a 1x2 or 2xN array');
+                error('The latitude limits must be a 1x2 or 2xN array');
             end
 
         else
-            nInclinations = 1;
-            inclang = [-1, 1] * inclang;
+            nLatlims = 1;
+            latlim = [-1, 1] * latlim;
         end
 
     end
@@ -216,7 +222,8 @@ function [nObjects, domain, upscale, buf, inclang, moreBuf, nearby] = ...
 
     nNearby = length(nearby);
 
-    nObjects = unique([nDomains, nUpscales, nBuffers, nInclinations, nMoreBuffers, nNearby]);
+    nObjects = unique([nDomains, nUpscales, nBuffers, nLatlims, ...
+                           nMoreBuffers, nNearby]);
     nObjects = nObjects(nObjects >= 1);
 
     if length(nObjects) > 2
@@ -242,8 +249,8 @@ function [nObjects, domain, upscale, buf, inclang, moreBuf, nearby] = ...
         buf = repmat(buf, nObjects, 1);
     end
 
-    if nInclinations < nObjects
-        inclang = repmat(inclang, nObjects, 1);
+    if nLatlims < nObjects
+        latlim = repmat(latlim, nObjects, 1);
     end
 
     if nMoreBuffers < nObjects
@@ -258,16 +265,18 @@ end
 
 % Assign the domain values (in case of multiple domains)
 function obj = ...
-        assigndomainvalues(domain, upscale, buf, inclang, nearby, moreBuf, useDefaultParams)
+        assigndomainvalues(domain, upscale, buf, latlim, nearby, ...
+        moreBuf, useDefaultParams)
     defaultUpscale = 0;
     dafaultBuffer = 0;
-    defaultInclination = [-90, 90];
+    defaultLatlim = [-90, 90];
     defaultNearby = false;
     obj = GeoDomain('');
     obj.Domain = domain;
 
     if exist(obj.Domain, 'file') ~= 2
-        warning('Domain %s might not exist', upper(obj.Domain));
+        warning('GeoDomain:domainNotFound', ...
+            'Domain %s might not exist', upper(obj.Domain));
     end
 
     if isnan(upscale)
@@ -277,7 +286,7 @@ function obj = ...
     obj.Upscale = conddefval(upscale, defaultUpscale);
 
     if obj.Upscale < 0
-        warning( ...
+        warning('GeoDomain:invalidUpscaleValue', ...
             ['Upscale must be non-negative', newline, ...
              sprintf('Changed from %d to 0', obj.Upscale)]);
         obj.Upscale = 0;
@@ -291,30 +300,31 @@ function obj = ...
 
     obj.Buffer = conddefval(buf, dafaultBuffer);
 
-    if strcmpi(inclang, 'default') || any(isnan(inclang)) || ...
-            (useDefaultParams && isempty(p.Results.Inclination))
+    if strcmpi(latlim, 'default') || any(isnan(latlim)) || ...
+            (useDefaultParams && isempty(p.Results.Latlim))
 
         switch obj.Domain
             case {'spacific', 'satlantic', 'indian'}
-                inclang = [-60, 60];
+                latlim = [-60, 60];
             otherwise
-                inclang = [-90, 90];
+                latlim = [-90, 90];
         end
 
     else
-        inclang = conddefval(inclang, defaultInclination);
+        latlim = conddefval(latlim, defaultLatlim);
     end
 
-    if inclang(1) == inclang(2)
+    if latlim(1) == latlim(2)
         error('%s\nThe given range is: [%i, %i]', ...
-            'The upper and lower bounds of the inclination must be different', ...
-            inclang(1), inclang(2));
+            'The upper and lower bounds of the latitude limits must be different', ...
+            latlim(1), latlim(2));
     else
-        obj.Inclination = inclang;
+        obj.Latlim = latlim;
     end
 
-    if any(strcmpi(moreBuf, 'default')) ...
-            || (useDefaultParams && (isempty(moreBuf) || all(cellfun(@isempty, moreBuf))))
+    if any(strcmpi(moreBuf, 'default')) || ...
+            (useDefaultParams && (isempty(moreBuf) || ...
+            all(cellfun(@isempty, moreBuf))))
 
         switch obj.Domain
             case {'oceans', 'npacific', 'indian'}
@@ -341,7 +351,7 @@ function obj = ...
 
     if ~strcmp(obj.Domain, 'greenland') && obj.NearBy
         obj.NearBy = false;
-        warning( ...
+        warning('GeoDomain:unsupportedNearBy', ...
             ['Option NEARBY is only supported for Greenland', ...
              newline, 'Changed from true to false']);
     end
@@ -350,7 +360,8 @@ end
 
 % Plot a dirty map of the boundary
 function plotlonlat(lonlat, obj, rotateBack)
-    figure(10)
+    figure(999)
+    set(gcf, 'Name', obj.DisplayName, 'NumberTitle', 'off')
     clf
 
     dirtymap(lonlat)
@@ -360,13 +371,12 @@ function plotlonlat(lonlat, obj, rotateBack)
     end
 
     lonlatnb = feval(obj.Domain, "Upscale", obj.Upscale, "Buffer", 0, ...
-        "Inclang", obj.Inclination, "MoreBuffer", obj.MoreBuffers, "RotateBack", rotateBack);
+        "Inclang", obj.Latlim, "MoreBuffer", obj.MoreBuffers, ...
+        "RotateBack", rotateBack);
     hold on
     plot(lonlatnb(:, 1), lonlatnb(:, 2), 'b', ...
         "DisplayName", "Unbuffered")
     plot(lonlat(:, 1), lonlat(:, 2), 'k', ...
         "DisplayName", "Buffered")
     hold off
-
-    legend('show', "Box", 'off')
 end

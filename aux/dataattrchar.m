@@ -3,19 +3,19 @@ function dataFileAttr = dataattrchar(varargin)
     addOptional(p, 'Upscale', 0, ...
         @(x) isnumeric(x) || isempty(x));
     addOptional(p, 'Buffer', 0);
-    addOptional(p, 'Inclang', 90, ...
+    addOptional(p, 'Latlim', 90, ...
         @(x) isnumeric(x) && length(x) <= 2);
-    addOptional(p, 'MoreBuffer', []);
+    addOptional(p, 'MoreBuffers', []);
     parse(p, varargin{:});
     upscale = p.Results.Upscale;
-    inclang = p.Results.Inclang;
+    latlim = p.Results.Latlim;
     buf = p.Results.Buffer;
-    moreBuf = p.Results.MoreBuffer;
+    moreBuf = p.Results.MoreBuffers;
 
-    if length(inclang) == 2
+    if length(latlim) == 2
 
-        if inclang(1) == -inclang(2)
-            inclang = max(inclang);
+        if latlim(1) == -latlim(2)
+            latlim = max(latlim);
         end
 
     end
@@ -48,31 +48,31 @@ function dataFileAttr = dataattrchar(varargin)
 
     end
 
-    if any(isnan(inclang)) || any(isempty(inclang))
-    elseif isscalar(inclang)
+    if any(isnan(latlim)) || any(isempty(latlim))
+    elseif isscalar(latlim)
 
-        if ~(inclang == 90 || isempty(inclang))
-            dataFileAttr{3} = num2str(inclang);
+        if ~(latlim == 90 || isempty(latlim))
+            dataFileAttr{3} = num2str(latlim);
         end
 
-    elseif ~isequal(inclang, [-90, 90])
+    elseif ~isequal(latlim, [-90, 90])
         inclangSign = [];
 
-        if inclang(1) < 0
+        if latlim(1) < 0
             inclangSign(1) = 's';
-        elseif inclang(1) > 0
+        elseif latlim(1) > 0
             inclangSign(1) = 'n';
         end
 
-        if inclang(2) < 0
+        if latlim(2) < 0
             inclangSign(2) = 's';
-        elseif inclang(2) > 0
+        elseif latlim(2) > 0
             inclangSign(2) = 'n';
         end
 
         dataFileAttr{3} = ...
-            [num2str(abs(inclang(1))), inclangSign(1), '_', ...
-             num2str(abs(inclang(2))), inclangSign(2)];
+            [num2str(abs(latlim(1))), inclangSign(1), '_', ...
+             num2str(abs(latlim(2))), inclangSign(2)];
 
     end
 
