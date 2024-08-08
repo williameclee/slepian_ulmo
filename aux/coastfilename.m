@@ -28,7 +28,7 @@ function [dataPath, dataFolder, fileExists] = ...
         dataFileAttr = dataattrchar('Upscale', upscale, 'Buffer', buf, ...
             'Latlim', latlim, 'MoreBuffers', moreBuf);
 
-        dataFile = [capitalise(domain), '-', dataFileAttr, '.mat'];
+        dataFile = [capitalise(domain), dataFileAttr, '.mat'];
     end
 
     dataPath = fullfile(dataFolder, dataFile);

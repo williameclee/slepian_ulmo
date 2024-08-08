@@ -6,21 +6,21 @@ function varargout = gshhscoastline(varargin)
     [dataQuality, latlim, lonlim, minLandArea, ...
          upscale, buf, ~, lonOrigin, ...
          gshhsFileName, gshhsFileExists, ...
-         forceReload, saveData, beQuiet] = parseinputs(varargin);
+         forcenew, saveData, beQuiet] = parseinputs(varargin);
 
     %% Reteiving the original data
-    if gshhsFileExists && ~forceReload
+    if gshhsFileExists && ~forcenew
         load(gshhsFileName, ...
             'GshhsCoasts', 'gshhsCoastXY', 'gshhsCoastPoly')
 
         if ~beQuiet
-            fprintf('%s loading %s\n', upper(mfilename), gshhsFileName);
+            fprintf('%s loaded %s\n', upper(mfilename), gshhsFileName);
         end
 
     else
         GshhsCoasts = gshhsstruct('DataQuality', dataQuality, ...
             'Upscale', upscale, 'Buffer', buf, ...
-            'Quiet', true, 'ForceReload', forceReload);
+            'Quiet', true, 'ForceReload', forcenew);
     end
 
     % Check if the data is complete
@@ -50,13 +50,19 @@ function varargout = gshhscoastline(varargin)
             save(gshhsFileName, ...
                 'gshhsCoastXY', 'gshhsCoastPoly', 'GshhsCoasts', ...
             '-append')
+
+            if ~beQuiet
+                fprintf('%s updated %s\n', upper(mfilename), gshhsFileName)
+            end
+
         else
             save(gshhsFileName, ...
                 'gshhsCoastXY', 'gshhsCoastPoly', 'GshhsCoasts')
-        end
 
-        if ~beQuiet
-            fprintf('%s saving or updating %s\n', upper(mfilename), gshhsFileName)
+            if ~beQuiet
+                fprintf('%s saved %s\n', upper(mfilename), gshhsFileName)
+            end
+
         end
 
     end
@@ -104,10 +110,11 @@ function varargout = parseinputs(inputArguments)
     addOptional(p, 'Upscale', 0, @isnumeric);
     addOptional(p, 'Buffer', 0, @isnumeric);
     addOptional(p, 'Tolerence', 0.2, @isnumeric);
-    addParameter(p, 'LongitudeOrigin', 0, @isnumeric);
-    addParameter(p, 'ForceReload', false, @islogical);
-    addParameter(p, 'SaveData', true, @islogical);
-    addParameter(p, 'Quiet', false, @islogical);
+    addParameter(p, 'LonOrigin', 0, @isnumeric);
+    addParameter(p, 'ForceNew', false, @islogical);
+    addParameter(p, 'SaveData', true, @(x) islogical(x) || isnumeric(x));
+    addParameter(p, 'BeQuiet', false, ...
+        @(x) islogical(x) || isnumeric(x));
     parse(p, inputArguments{:});
 
     %% Assigning the inputs
@@ -118,10 +125,10 @@ function varargout = parseinputs(inputArguments)
     upscale = p.Results.Upscale;
     buf = p.Results.Buffer;
     tol = p.Results.Tolerence;
-    lonOrigin = p.Results.LongitudeOrigin;
-    forceReload = p.Results.ForceReload;
+    lonOrigin = p.Results.LonOrigin;
+    forcenew = p.Results.ForceNew;
     saveData = p.Results.SaveData;
-    beQuiet = p.Results.Quiet;
+    beQuiet = logical(p.Results.BeQuiet);
 
     %% Additional parameters
     [gshhsFileName, ~, gshhsFileExists] = gshhsfilename( ...
@@ -134,7 +141,7 @@ function varargout = parseinputs(inputArguments)
         {dataQuality, latlim, lonlim, minLandArea, ...
          upscale, buf, tol, lonOrigin, ...
          gshhsFileName, gshhsFileExists, ...
-         forceReload, saveData, beQuiet};
+         forcenew, saveData, beQuiet};
 end
 
 function gshhsCoastPoly = ...

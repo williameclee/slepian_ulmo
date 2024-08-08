@@ -49,6 +49,7 @@ function varargout = parsecoastinputs(inputArguments, varargin)
     addOptional(d, 'DefaultMoreBuffers', []);
     addOptional(d, 'DefaultLonOrigin', 180);
     addOptional(d, 'DefaultForceNew', false);
+    addOptional(d, 'DefaultSaveData', true);
     addOptional(d, 'DefaultBeQuiet', 0.5);
     parse(d, inputArguments, varargin{:});
     upscaleD = d.Results.DefaultUpscale;
@@ -57,6 +58,7 @@ function varargout = parsecoastinputs(inputArguments, varargin)
     moreBufsD = d.Results.DefaultMoreBuffers;
     lonOriginD = d.Results.DefaultLonOrigin;
     forcenewD = d.Results.DefaultForceNew;
+    saveDataD = d.Results.DefaultSaveData;
     beQuietD = d.Results.DefaultBeQuiet;
 
     %% Parsing the 'real' inputs
@@ -71,6 +73,8 @@ function varargout = parsecoastinputs(inputArguments, varargin)
     addParameter(p, 'LonOrigin', lonOriginD);
     addParameter(p, 'ForceNew', forcenewD, ...
         @(x) islogical(x) || x == 1 || x == 0);
+    addParameter(p, 'SaveData', saveDataD, ...
+        @(x) islogical(x));
     addParameter(p, 'BeQuiet', beQuietD, ...
         @(x) islogical(x));
     parse(p, inputArguments{:});
@@ -78,7 +82,7 @@ function varargout = parsecoastinputs(inputArguments, varargin)
     %% Assigning the parsed values
     upscale = p.Results.Upscale;
 
-    if isempty(upscale)
+    if isempty(upscale) || upscale == 1
         upscale = upscaleD;
     end
 
@@ -102,8 +106,9 @@ function varargout = parsecoastinputs(inputArguments, varargin)
 
     lonOrigin = p.Results.LonOrigin;
     forceNew = logical(p.Results.ForceNew);
+    saveData = logical(p.Results.SaveData);
     beQuiet = uint8(p.Results.BeQuiet * 2);
 
     varargout = ...
-        {upscale, latlim, buf, moreBufs, lonOrigin, forceNew, beQuiet};
+        {upscale, latlim, buf, moreBufs, lonOrigin, forceNew, saveData, beQuiet};
 end

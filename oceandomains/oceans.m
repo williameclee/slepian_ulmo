@@ -4,10 +4,9 @@
 %
 % Syntax
 %   XY = oceans(upscale, buf)
-%   XY = oceans(__, latlim)
-%   XY = oceans(__, morebuffers)
+%   XY = oceans(upscale, buf, latlim, morebuffers)
 %   XY = oceans(__, 'Name', value)
-%   oceans(__)
+%   [XY, p] = oceans(__)
 %
 % Input arguments
 %   upscale - How many times to upscale the data
@@ -41,11 +40,23 @@
 %       The default value is false.
 %
 % Output arguments
-%   XY - Closed-curved coordinates of the world's oceans
+%   XY - Closed-curved coordinates of the domain
+%   p - Polygon of the domain boundary
+%       Note that this is an ordinary polyshape object, and not a geoshape 
+%       or geopolyshape.
+%   map - Map of the domain boundary
+%       When there is no output argument, a quick and dirty map will be 
+%       displayed.
 %
 % Examples
-%   The 'default' ocean domain used for most applications is given by
+%   The 'default' domain used for most applications is given by
 %   XY = oceans('Buffer', 1, 'MoreBuffers', {'earthquakes', 10});
+%
+% Notes
+%   The function is written intentionally so that it is compatible with
+%   other region functions from slepian_alpha, i.e.
+%   XY = oceans(upscale, buf)
+%   works as intended.
 %
 % Data source
 %   The coastline data is based on the GSHHG coastline data:
@@ -56,76 +67,80 @@
 %       doi: 10.1594/PANGAEA.777975
 %
 % Last modified by
-%   williameclee-at-arizona.edu, 2024/08/07
+%   williameclee-at-arizona.edu, 2024/08/08
 
 function varargout = oceans(varargin)
     %% Initialisation
     % Suppress warnings
     warning('off', 'MATLAB:polyshape:repairedBySimplify');
     % Parse the inputs
-    [upscale, latlim, buf, moreBufs, lonOrigin, forcenew, beQuiet] = ...
+    [upscale, latlim, buf, moreBufs, lonOrigin, ...
+        forceNew, saveData, beQuiet] = ...
         parsecoastinputs(varargin, 'DefaultLonOrigin', 200);
     oceanParts = ...
-        {'Atlantic Ocean', ...
-         'Indian Ocean', ...
+        {'Atlantic Ocean', 'Indian Ocean', ...
          'Pacific Ocean, eastern part', ...
      'Pacific Ocean, western part'};
-    % Title for plots
-    oceanTitle = sprintf('%s (%s)', domainname(mfilename, 'long'), upper(mfilename));
 
     %% Check if the data file exists
-    [dataFile, ~, dataFileExists] = coastfilename(mfilename, ...
+    [dataFile, ~, dataExists] = coastfilename(mfilename, ...
         'Upscale', upscale, 'Latlim', latlim, ...
         'Buffer', buf, 'MoreBuffers', moreBufs);
 
-    if dataFileExists && ~forcenew
-        load(dataFile, 'XY')
+    if dataExists && ~forceNew
+        load(dataFile, 'XY', 'p')
 
-        if beQuiet < 2
-            fprintf('%s loaded %s\n', upper(mfilename), dataFile)
+        % Make sure the requested data exists
+        if exist('XY', 'var') && exist('p', 'var')
+
+            if beQuiet < 2
+                fprintf('%s loaded %s\n', upper(mfilename), dataFile)
+            end
+
+            varargout = returncoastoutputs(nargout, XY, p);
+
+            return
         end
 
-        varargout = returncoastoutputs(nargout, XY, oceanTitle);
+    end
 
+    %% Compute the ocean boundary
+    % Find the ocean boundary (not accounting for the coastlines)
+    [oceanPoly, oceanLatlim, oceanLonlim] = findoceanboundary( ...
+        oceanParts, latlim, lonOrigin, 'BeQuiet', beQuiet);
+    % Find the coastline
+    [~, coastPoly] = gshhscoastline('l', 'Buffer', buf, ...
+        'LatLim', oceanLatlim, 'LonLim', oceanLonlim, ...
+        'LonOrigin', lonOrigin, 'BeQuiet', beQuiet);
+    % Crop out more buffers
+    [~, coastPoly] = buffer4oceans(coastPoly, ...
+        'MoreBuffers', moreBufs, 'LonOrigin', lonOrigin);
+    % Manually remove small holes
+    coastPoly = manualadjustments(coastPoly, buf, moreBufs, lonOrigin);
+    % Subtract the land regions from the ocean boundary
+    p = subtract(oceanPoly, coastPoly);
+
+    % Turn the polygon into a well-defined curve
+    XY = poly2xy(p, upscale);
+
+    %% Save and return data
+    varargout = returncoastoutputs(nargout, XY, p);
+
+    if ~saveData
         return
     end
 
-    %% Compute the data
-    [oceanPoly, oceanLatlim, oceanLonlim] = ...
-        findoceanboundary(oceanParts, latlim, lonOrigin);
-
-    [~, coastPoly] = gshhscoastline('l', 'Buffer', buf, ...
-        'LatLim', oceanLatlim, 'LonLim', oceanLonlim, ...
-        'LongitudeOrigin', lonOrigin);
-
-    coastPoly = buffer4oceans(coastPoly, buf, ...
-        'MoreBuffer', moreBufs, 'LongitudeOrigin', lonOrigin);
-
-    coastPoly = manualadjustment(coastPoly, buf, moreBufs, lonOrigin);
-
-    oceanPoly = subtract(oceanPoly, coastPoly);
-
-    XY = closecoastline(oceanPoly.Vertices);
-
-    % Convert the data to the right format
-    [X, Y] = poly2cw(XY(:, 1), XY(:, 2));
-    XY = removeduplicatevertices([X, Y]);
-    % Make sure the minimum longitude is greater than 0
-    XY(:, 1) = XY(:, 1) - floor(min(XY(:, 1)) / 360) * 360;
-
-    %% Save and return required data
-    save(dataFile, 'XY', '-v7.3')
+    save(dataFile, 'XY', 'p', '-v7.3')
 
     if beQuiet < 2
         fprintf('%s saved %s\n', upper(mfilename), dataFile)
     end
 
-    varargout = returncoastoutputs(nargout, XY, oceanTitle);
-
 end
 
-function coastPoly = manualadjustment(coastPoly, buf, moreBufs, lonOrigin)
-
+%% Subfunctions
+% Manually remove small holes in the coastline
+function coastPoly = manualadjustments(coastPoly, buf, moreBufs, lonOrigin)
     coastPoly = addlandregion(coastPoly, ...
         'Latlim', [-16, -15], 'Lonlim', [127, 129], ...
         'LongitudeOrigin', lonOrigin);

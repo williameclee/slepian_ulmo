@@ -1,25 +1,35 @@
-function vout = returncoastoutputs(nArgout, XY, varargin)
+function vout = returncoastoutputs(nOut, XY, oceanPoly, varargin)
     p = inputParser;
-    addRequired(p, 'nArgout', @isnumeric);
+    addRequired(p, 'nOut', @isnumeric);
     addRequired(p, 'XY', @isnumeric);
-    addOptional(p, 'MapTitle', '', @ischar);
+    addRequired(p, 'Polygon', @(x) isa(x, 'polyshape'));
+    addOptional(p, 'CallerName', '', @ischar);
     addParameter(p, 'FigureNumber', 999, @isnumeric);
-    parse(p, nArgout, XY, varargin{:});
+    parse(p, nOut, XY, oceanPoly, varargin{:});
 
-    nArgout = p.Results.nArgout;
+    nOut = p.Results.nOut;
     XY = p.Results.XY;
-    mapTitle = p.Results.MapTitle;
+    oceanPoly = p.Results.Polygon;
+    callerName = p.Results.CallerName;
     figNum = p.Results.FigureNumber;
 
-    vout = {XY};
+    vout = {XY, oceanPoly};
 
-    if nArgout > 0
+    if nOut > 0
         return
     end
 
+    %% Plotting the boundary
+    if isempty(callerName)
+        st = dbstack;
+        callerName = st(2).name;
+    end
+
+    figTitle = sprintf('%s (%s)', domainname(callerName, 'long'), upper(callerName));
+
     figure(figNum)
     clf
-    set(gcf, 'Name', mapTitle, 'NumberTitle', 'off')
+    set(gcf, 'Name', figTitle, 'NumberTitle', 'off')
 
     dirtymap(XY)
     hold on

@@ -1,17 +1,15 @@
-function coastPoly = buffer4oceans(coast, buf, varargin)
+function [coastXY, coastPoly] = buffer4oceans(coast, varargin)
     % Suppress warnings
     warning('off', 'MATLAB:polyshape:repairedBySimplify')
     % Parse inputs
     p = inputParser;
     addRequired(p, 'Coast');
-    addOptional(p, 'buf', []);
-    addOptional(p, 'MoreBuffer', []);
-    addOptional(p, 'LongitudeOrigin', 0);
-    parse(p, coast, buf, varargin{:});
+    addOptional(p, 'MoreBuffers', []);
+    addOptional(p, 'LonOrigin', 0);
+    parse(p, coast, varargin{:});
     coast = p.Results.Coast;
-    % buf = p.Results.buf;
-    moreBuf = p.Results.MoreBuffer;
-    lonOrigin = p.Results.LongitudeOrigin;
+    moreBufs = p.Results.MoreBuffers;
+    lonOrigin = p.Results.LonOrigin;
 
     %% Buffer continents with different buffers
     if isa(coast, 'polyshape')
@@ -20,16 +18,19 @@ function coastPoly = buffer4oceans(coast, buf, varargin)
         coastPoly = polyshape(coast);
     end
 
-    if isempty(moreBuf)
+    if isempty(moreBufs)
+        coastXY = closecoastline(coastPoly.Vertices);
         return
     end
 
-    for i = 1:length(moreBuf) / 2
-        moreCoastXY = feval(moreBuf{i * 2 - 1}, [], moreBuf{i * 2});
+    for i = 1:length(moreBufs) / 2
+        moreCoastXY = feval(moreBufs{i * 2 - 1}, [], moreBufs{i * 2});
         [moreCoastY, moreCoastX] = flatearthpoly( ...
             moreCoastXY(:, 2), moreCoastXY(:, 1), lonOrigin);
         moreCoastPoly = polyshape(moreCoastX, moreCoastY);
         coastPoly = union(coastPoly, moreCoastPoly);
     end
+
+    coastXY = closecoastline(coastPoly.Vertices);
 
 end

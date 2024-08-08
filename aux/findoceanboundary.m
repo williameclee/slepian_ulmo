@@ -1,6 +1,18 @@
 function [oceanLimit, latlim, lonmin] = ...
-        findoceanboundary(oceanNames, inclang, lonOrigin)
-    LimitsOfOceansAndSeas = limitsofoceansandseas;
+        findoceanboundary(oceanNames, varargin)
+    p = inputParser;
+    addRequired(p, 'Oceans', @(x) iscell(x) || ischar(x) || isstring(x));
+    addOptional(p, 'Latlim', [-90, 90], @isnumeric);
+    addOptional(p, 'LonOrigin', 180, @isnumeric);
+    addParameter(p, 'BeQuiet', false, ...
+        @(x) islogical(x) || isnumeric(x));
+    parse(p, oceanNames, varargin{:});
+    oceanNames = p.Results.Oceans;
+    latlim = p.Results.Latlim;
+    lonOrigin = p.Results.LonOrigin;
+    beQuiet = logical(p.Results.BeQuiet);
+
+    LimitsOfOceansAndSeas = limitsofoceansandseas('BeQuiet', beQuiet);
     oceanLimit = union( ...
         [LimitsOfOceansAndSeas( ...
          ismember({LimitsOfOceansAndSeas.Name}, oceanNames) ...
@@ -15,7 +27,7 @@ function [oceanLimit, latlim, lonmin] = ...
         lat, lon, lonOrigin);
 
     oceanLimit = polyshape(lon, lat);
-    oceanLimit = removepolarcaps(oceanLimit, inclang, lonOrigin);
+    oceanLimit = removepolarcaps(oceanLimit, latlim, lonOrigin);
     latlim = ...
         [min(oceanLimit.Vertices(:, 2)), ...
          max(oceanLimit.Vertices(:, 2))];
