@@ -20,28 +20,3 @@ function dirtymap(varargin)
     xticklabels(cellfun(@formatlonticks, num2cell(xticks), "UniformOutput", false))
     yticklabels(cellfun(@formatlatticks, num2cell(yticks), "UniformOutput", false))
 end
-
-function lonL = formatlonticks(lon)
-    lon = mod(lon, 360);
-
-    if lon < 180
-        lonL = sprintf('%d°E', lon);
-    elseif lon > 180
-        lonL = sprintf('%d°W', 360 - lon);
-    else
-        lonL = '180°';
-    end
-
-end
-
-function latL = formatlatticks(lat)
-
-    if lat > 0
-        latL = sprintf('%d°N', lat);
-    elseif lat < 0
-        latL = sprintf('%d°S', -lat);
-    else
-        latL = '0°';
-    end
-
-end

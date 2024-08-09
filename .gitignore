@@ -1,2 +1,5 @@
 # MATLAB testing and auxiliary files
 *_test*.m
+
+# Temporary files
+gausslegendrecof.mat

@@ -1,3 +1,4 @@
+%% EARTHQUAKES
 function XY = earthquakes(varargin)
     p = inputParser;
     addOptional(p, 'Upscale', 0, ...
