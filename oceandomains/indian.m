@@ -66,15 +66,15 @@
 %       doi: 10.1594/PANGAEA.777975
 %
 % Last modified by
-%   williameclee-at-arizona.edu, 2024/08/08
+%   2024/08/09, williameclee-at-arizona.edu
 
 function varargout = indian(varargin)
     %% Initialisation
     % Suppress warnings
     warning('off', 'MATLAB:polyshape:repairedBySimplify');
     % Parse the inputs
-    [upscale, latlim, buf, moreBufs, lonOrigin, ...
-        forceNew, saveData, beQuiet] = ...
+    [upscale, latlim, buf, moreBufs, lonOrigin, ~, ...
+         forceNew, saveData, beQuiet] = ...
         parsecoastinputs(varargin);
     oceanParts = 'Indian Ocean';
 

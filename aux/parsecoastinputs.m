@@ -29,6 +29,7 @@
 %   buf - The buffer from the coastlines in degrees
 %   moreBufs - Additional buffers to apply to the coastlines
 %   lonOrigin - The longitude origin of the data
+%   rotateBack - Whether to rotate the data back to the original orientation
 %   forceNew - Force the function to reload the data
 %   beQuiet - Suppress the output messages
 %       - 0: Show all messages
@@ -36,7 +37,7 @@
 %       - 2: Suppress all messages (hard quiet)
 %       The default value is 1.
 %
-% Last modified by 
+% Last modified by
 %   williameclee-at-arizona.edu, 2024/08/07
 
 function varargout = parsecoastinputs(inputArguments, varargin)
@@ -70,9 +71,11 @@ function varargout = parsecoastinputs(inputArguments, varargin)
     addOptional(p, 'Latlim', latlimD, ...
         @(x) isnumeric(x) || isempty(x));
     addOptional(p, 'MoreBuffers', moreBufsD, @iscell);
-    addParameter(p, 'LonOrigin', lonOriginD);
+    addOptional(p, 'LonOrigin', lonOriginD);
+    addOptional(p, 'RotateBack', false, ...
+        @(x) islogical(x) || isnumeric(x));
     addParameter(p, 'ForceNew', forcenewD, ...
-        @(x) islogical(x) || x == 1 || x == 0);
+        @(x) islogical(x) || isnumeric(x));
     addParameter(p, 'SaveData', saveDataD, ...
         @(x) islogical(x));
     addParameter(p, 'BeQuiet', beQuietD, ...
@@ -105,10 +108,12 @@ function varargout = parsecoastinputs(inputArguments, varargin)
     end
 
     lonOrigin = p.Results.LonOrigin;
+    rotateBack = logical(p.Results.RotateBack);
     forceNew = logical(p.Results.ForceNew);
     saveData = logical(p.Results.SaveData);
     beQuiet = uint8(p.Results.BeQuiet * 2);
 
     varargout = ...
-        {upscale, latlim, buf, moreBufs, lonOrigin, forceNew, saveData, beQuiet};
+        {upscale, latlim, buf, moreBufs, lonOrigin, rotateBack, ...
+         forceNew, saveData, beQuiet};
 end

@@ -42,10 +42,10 @@
 % Output arguments
 %   XY - Closed-curved coordinates of the domain
 %   p - Polygon of the domain boundary
-%       Note that this is an ordinary polyshape object, and not a geoshape 
+%       Note that this is an ordinary polyshape object, and not a geoshape
 %       or geopolyshape.
 %   map - Map of the domain boundary
-%       When there is no output argument, a quick and dirty map will be 
+%       When there is no output argument, a quick and dirty map will be
 %       displayed.
 %
 % Examples
@@ -67,15 +67,15 @@
 %       doi: 10.1594/PANGAEA.777975
 %
 % Last modified by
-%   williameclee-at-arizona.edu, 2024/08/08
+%   2024/08/09, williameclee-at-arizona.edu
 
 function varargout = oceans(varargin)
     %% Initialisation
     % Suppress warnings
     warning('off', 'MATLAB:polyshape:repairedBySimplify');
     % Parse the inputs
-    [upscale, latlim, buf, moreBufs, lonOrigin, ...
-        forceNew, saveData, beQuiet] = ...
+    [upscale, latlim, buf, moreBufs, lonOrigin, ~, ...
+         forceNew, saveData, beQuiet] = ...
         parsecoastinputs(varargin, 'DefaultLonOrigin', 200);
     oceanParts = ...
         {'Atlantic Ocean', 'Indian Ocean', ...
