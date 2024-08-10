@@ -1,9 +1,9 @@
-%% PARSECOASTINPUTS
+%% PARSEOCEANINPUTS
 % Parses the inputs for the ocean domain functions.
 %
 % Syntax
-%   parsecoastinputs(inputArguments)
-%   parsecoastinputs(__, 'Name', value)
+%   parseoceaninputs(inputArguments)
+%   parseoceaninputs(__, 'Name', value)
 %
 % Input arguments
 %   inputArguments - The input arguments to the function
@@ -40,10 +40,10 @@
 % Last modified by
 %   williameclee-at-arizona.edu, 2024/08/07
 
-function varargout = parsecoastinputs(inputArguments, varargin)
+function varargout = parseoceaninputs(Inputs, varargin)
     %% Assigning default values
     d = inputParser;
-    addRequired(d, 'inputArguments');
+    addRequired(d, 'Inputs');
     addOptional(d, 'DefaultUpscale', 0);
     addOptional(d, 'DefaultBuffer', 0);
     addOptional(d, 'DefaultLatlim', 90);
@@ -52,7 +52,8 @@ function varargout = parsecoastinputs(inputArguments, varargin)
     addOptional(d, 'DefaultForceNew', false);
     addOptional(d, 'DefaultSaveData', true);
     addOptional(d, 'DefaultBeQuiet', 0.5);
-    parse(d, inputArguments, varargin{:});
+    parse(d, Inputs, varargin{:});
+    
     upscaleD = d.Results.DefaultUpscale;
     bufD = d.Results.DefaultBuffer;
     latlimD = d.Results.DefaultLatlim;
@@ -80,7 +81,7 @@ function varargout = parsecoastinputs(inputArguments, varargin)
         @(x) islogical(x));
     addParameter(p, 'BeQuiet', beQuietD, ...
         @(x) islogical(x));
-    parse(p, inputArguments{:});
+    parse(p, Inputs{:});
 
     %% Assigning the parsed values
     upscale = p.Results.Upscale;

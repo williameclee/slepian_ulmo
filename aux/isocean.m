@@ -1,12 +1,36 @@
-function isOcean = isocean(region)
+%% ISOCEAN
+% Determine if a domain is an ocean basin.
+%
+% Syntax
+%   flag = isocean(domain)
+%
+% Input arguments
+%   domain - The domain to check
+%       The domain can be a string, a cell array of strings, or a GeoDomain
+%       object.
+%
+% Output arguments
+%   flag - A flag indicating whether the domain is an ocean basin
+%
+% Notes
+%   The following domains are considered ocean basins:
+%       oceans, arctic, indian, pacific, spacific, npacific, atlantic,
+%       satlantic, natlantic
+%
+% Last modified by
+%   2024/08/10, williameclee-at-arizona.edu
 
-    if iscell(region)
-        region = region{1};
+function isOcean = isocean(domain)
+
+    if iscell(domain)
+        domain = domain{1};
+    elseif isa(domain, 'GeoDomain')
+        domain = domain.Domain;
     end
 
     oceanStrings = ...
-        {'oceans', ...
-         'atlantic', 'satlantic', 'natlantic', ...
-         'pacific', 'spacific', 'npacific', 'indian'};
-    isOcean = ismember(region, oceanStrings);
+        {'oceans', 'arctic', 'indian', ...
+         'pacific', 'spacific', 'npacific', ...
+         'atlantic', 'satlantic', 'natlantic'};
+    isOcean = ismember(domain, oceanStrings);
 end

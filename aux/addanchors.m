@@ -1,3 +1,25 @@
+%% ADDANCHORS
+% Add anchors to horizontal or vertical segments of a polygon to ensure that the segments are not too long.
+% This is useful when trying to plot the polygon on a map, as the segments are not displayed as great circle arcs.
+%
+% Syntax
+%   p = addanchors(p)
+%   lonlat = addanchors(lonlat)
+%   [lon, lat] = addanchors(lon, lat)
+%
+% Input arguments
+%   p - A polyshape object
+%   lonlat - A 2-column matrix of longitudes and latitudes
+%   lon, lat - Vectors of longitudes and latitudes
+%
+% Output arguments
+%   p - A polyshape object
+%   lonlat - A 2-column matrix of longitudes and latitudes
+%   lon, lat - Vectors of longitudes and latitudes
+%
+% Last modified by
+%   2021/08/10, williameclee-at-arizona.edu
+
 function varargout = addanchors(varargin)
     isPoly = false;
 
