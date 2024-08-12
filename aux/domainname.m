@@ -1,7 +1,37 @@
+%% DOMAINNAME
+% Returns the full name of a domain given its function name.
+%
+% Syntax
+%   name = domainname(domain)
+%   name = domainname(domain, fmt)
+%
+% Input arguments
+%   domain - The domain name
+%       The domain name should be the name of a function that returns the
+%       domain vertices.
+%   fmt - The format of the domain name
+%       - 'short' - Short name
+%       - 'long' - Long name
+%       The default value is 'short'.
+%
+% Output arguments
+%   name - The full name of the domain
+%
+% Example
+%   >>  domainname('namerica')
+%   'N America'
+%   >>  domainname('namerica', 'long')
+%   'North America'
+%
+% Last modified by
+%   2024/08/12, williameclee@arizona.edu (@williameclee)
+
 function domainName = domainname(varargin)
     p = inputParser;
-    addRequired(p, 'Domain', @(x) ischar(x) || isstring(x) || iscell(x));
-    addOptional(p, 'Format', 'short', @(x) ischar(x) || isstring(x));
+    addRequired(p, 'Domain', ...
+        @(x) ischar(x) || isstring(x) || iscell(x));
+    addOptional(p, 'Format', 'short', ...
+        @(x) ischar(x) || isstring(x));
     parse(p, varargin{:});
     domain = p.Results.Domain;
     format = p.Results.Format;

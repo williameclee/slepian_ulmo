@@ -38,7 +38,7 @@
 %       The default value is 1.
 %
 % Last modified by
-%   williameclee-at-arizona.edu, 2024/08/07
+%   2024/08/12, williameclee@arizona.edu (@williameclee)
 
 function varargout = parseoceaninputs(Inputs, varargin)
     %% Assigning default values
@@ -53,7 +53,7 @@ function varargout = parseoceaninputs(Inputs, varargin)
     addOptional(d, 'DefaultSaveData', true);
     addOptional(d, 'DefaultBeQuiet', 0.5);
     parse(d, Inputs, varargin{:});
-    
+
     upscaleD = d.Results.DefaultUpscale;
     bufD = d.Results.DefaultBuffer;
     latlimD = d.Results.DefaultLatlim;
@@ -76,7 +76,7 @@ function varargout = parseoceaninputs(Inputs, varargin)
     addOptional(p, 'RotateBack', false, ...
         @(x) islogical(x) || isnumeric(x));
     addParameter(p, 'ForceNew', forcenewD, ...
-        @(x) islogical(x) || isnumeric(x));
+        @(x) islogical(x) || isnumeric(x) || ismember(x, 'on', 'off'));
     addParameter(p, 'SaveData', saveDataD, ...
         @(x) islogical(x));
     addParameter(p, 'BeQuiet', beQuietD, ...
@@ -110,7 +110,15 @@ function varargout = parseoceaninputs(Inputs, varargin)
 
     lonOrigin = p.Results.LonOrigin;
     rotateBack = logical(p.Results.RotateBack);
-    forceNew = logical(p.Results.ForceNew);
+
+    if islogical(p.Results.ForceNew) || isnumeric(p.Results.ForceNew)
+        forceNew = logical(p.Results.ForceNew);
+    elseif ismember(p.Results.ForceNew, 'on')
+        forceNew = true;
+    elseif ismember(p.Results.ForceNew, 'off')
+        forceNew = false;
+    end
+
     saveData = logical(p.Results.SaveData);
     beQuiet = uint8(p.Results.BeQuiet * 2);
 

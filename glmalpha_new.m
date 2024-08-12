@@ -109,10 +109,10 @@
 %   back...
 %
 % Last modified by
-%   2024/08/08, williameclee-at-arizona.edu
-%   2017/12/01, fjsimons-at-alum.mit.edu
-%   2016/06/27, charig-at-princeton.edu
-%   2016/10/11, plattner-at-alumni.ethz.ch
+%   2024/08/08, williameclee@arizona.edu (@williameclee)
+%   2017/12/01, fjsimons@alum.mit.edu (@fjsimons)
+%   2016/06/27, charig@princeton.edu (@harig00)
+%   2016/10/11, plattner@alumni.ethz.ch (@AlainPlattner)
 
 function varargout = glmalpha_new(varargin)
     %% Initialisation & demos
@@ -389,7 +389,7 @@ function [lp, bp, maxL, ldim] = ldimension(L)
 end
 
 function plotvweightmap(G, V, domain, rotb)
-    [mesh, lon, lat] = vweightedmap(G, V, 2);
+    [mesh, lon, lat] = eigwmesh(G, V, 2);
     mesh = mesh / max(mesh(:));
     figName = 'Eigenvalue-weighted map of the Slepian functions';
 

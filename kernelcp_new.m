@@ -73,10 +73,10 @@
 %   PLOTSLEP, PLM2AVG, KERNELC, LEGENDREPRODINT, DLMLMP
 %
 % Last modified by
-%   2024/08/09, williameclee-at-arizona.edu
-%   2023/11/11, fjsimons-at-alum.mit.edu
-%   2017/05/26, plattner-at-alumni.ethz.ch
-%   2016/09/23, charig-at-princeton.edu
+%   2024/08/09, williameclee@arizona.edu (@williameclee)
+%   2023/11/11, fjsimons@alum.mit.edu (@fjsimons)
+%   2017/05/26, plattner@alumni.ethz.ch (@AlainPlattner)
+%   2016/09/23, charig@princeton.edu (@harig00)
 
 function varargout = kernelcp_new(varargin)
     % Add path to the auxiliary functions

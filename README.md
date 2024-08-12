@@ -40,6 +40,11 @@ To support the class `GeoDomain`, the following functions have been modified:
 
 The ultimate goal is to drop the `_new` suffixes and replace the original functions with the modified ones. Note that these functions are only tested for geographic domains, and may not work as expected for, e.g. circular caps.
 
+### Visualisations
+
+- `eigenwmesh`: Returns a mesh of the eigenvalue-weighted power map of the given Slepian functions.
+- `plotqdm`: Plots a quick-and-dirty map (i.e. on a normal axes object) of the given coordinates.
+
 ---
 Last modified by:
-- [En-Chi Lee](mailto:williameclee@arizona.edu), 2024/08/09
+- [En-Chi Lee (@williameclee)](https://github.com/williameclee), 2024/08/12

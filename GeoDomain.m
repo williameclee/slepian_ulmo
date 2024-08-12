@@ -1,3 +1,52 @@
+%% GEODOMAIN
+% Is a class that stores the information of a geographical domain.
+%
+% Properties
+%   Domain - The name of the domain
+%       The domain name should be the name of a function that returns the
+%       coordinates of the domain boundary.
+%   Upscale - The resolution of the domain
+%       The upscale value is the number of times the domain boundary is
+%       upscaled.
+%       The default value is 0.
+%   Buffer - The buffer from the domain boundary
+%       The buffer is the distance from the domain boundary to the coastlines.
+%       The default value is 0.
+%   Latlim - The latitudes of the domain
+%       The latitudes are specified as a 1-by-2 vector.
+%       The default value is [-90, 90].
+%   MoreBuffers - Additional buffers to apply to the coastlines
+%       The additional buffers are specified as a cell array of domain names
+%       and buffer values.
+%       The default value is an empty cell array.
+%   NearBy - A flag to indicate whether the domain is near another domain
+%       The default value is false.
+%       The option is only supported for Greenland.
+%
+% Methods
+%   Id - The identifier for the domain
+%       It is useful for finding domain-specific files.
+%   DisplayName - The display name of the domain
+%       The display name is the name of the domain in a human-readable form.
+%   Lonlat - The longitude and latitude coordinates of the domain
+%       The coordinates are in the form of a closed-curved polygon.
+%   Lon, Lat - The longitude or latitude coordinates of the domain
+%       The coordinates are in the form of a closed-curved polygon.
+%   SphArea - The fractional area of the domain relative to the sphere
+%   Area - The total area of the domain in square metres
+%
+% Examples
+%   >>  domain = GeoDomain('indian', 'Upscale', 1, 'Buffer', 1);
+%   >>  domain.DisplayName
+%   >>  lonlat = domain.Lonlat;
+%   >>  area = domain.Area;
+%
+% See also
+%   SPHAREA
+%
+% Last modified by
+%   2021/08/10, williameclee@arizona.edu (@williameclee)
+
 classdef GeoDomain
 
     properties
@@ -364,7 +413,7 @@ function plotlonlat(lonlat, obj, rotateBack)
     set(gcf, 'Name', obj.DisplayName, 'NumberTitle', 'off')
     clf
 
-    dirtymap(lonlat)
+    plotqdm(lonlat)
 
     if obj.Buffer == 0
         return

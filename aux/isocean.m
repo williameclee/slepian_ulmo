@@ -18,7 +18,7 @@
 %       satlantic, natlantic
 %
 % Last modified by
-%   2024/08/10, williameclee-at-arizona.edu
+%   2024/08/10, williameclee@arizona.edu (@williameclee)
 
 function isOcean = isocean(domain)
 

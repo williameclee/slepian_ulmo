@@ -18,7 +18,7 @@
 %   lon, lat - Vectors of longitudes and latitudes
 %
 % Last modified by
-%   2021/08/10, williameclee-at-arizona.edu
+%   2021/08/10, williameclee@arizona.edu (@williameclee)
 
 function varargout = addanchors(varargin)
     isPoly = false;
@@ -81,7 +81,7 @@ function varargout = addanchors(varargin)
         figure(998)
         set(gcf, 'Name', figName, 'NumberTitle', 'off')
         clf
-        dirtymap(lona, lata)
+        plotqdm(lona, lata)
         hold on
         plot(lona, lata, 'k.-')
         hold off

@@ -31,7 +31,7 @@ function vout = returncoastoutputs(nOut, XY, oceanPoly, varargin)
     clf
     set(gcf, 'Name', figTitle, 'NumberTitle', 'off')
 
-    dirtymap(XY)
+    plotqdm(XY)
     hold on
     plot(XY(:, 1), XY(:, 2), 'k.-')
     hold off

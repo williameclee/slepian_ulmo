@@ -44,7 +44,7 @@
 %   dataPath = oceanfilename('indian', 'Upscale', 1, 'Buffer', 1)
 %
 % Last modified by
-%   2024/08/10, williameclee-at-arizona.edu
+%   2024/08/10, williameclee@arizona.edu (@williameclee)
 
 function [dataPath, dataFolder, fileExists] = ...
         oceanfilename(domain, varargin)

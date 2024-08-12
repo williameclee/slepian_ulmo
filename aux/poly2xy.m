@@ -18,7 +18,7 @@
 %  lon, lat - The longitudes and latitudes of the curve
 %
 % Last modified by
-%   2024/08/10, williameclee-at-arizona.edu
+%   2024/08/10, williameclee@arizona.edu (@williameclee)
 
 function [lonlat, lon, lat] = poly2xy(poly, varargin)
     %% Initialisation

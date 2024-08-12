@@ -1,3 +1,26 @@
+%% DATAATTRCHAR
+% Generate a string that represents the attributes of a data file.
+%
+% Syntax
+%  dataFileAttr = dataattrchar(upscale, buf, latlim, moreBufs)
+%
+% Input arguments
+%   upscale - The upscale factor
+%       The default value is 0.
+%   buf - The buffer size
+%       The default value is 0.
+%   latlim - The latitude limits
+%       The default value is 90.
+%   moreBufs - Additional buffers
+%       The default value is no additional buffers.
+%
+% Output arguments
+%   dataFileAttr - The string that represents the attributes of a data 
+%       file.
+%
+% Last modified by
+%   2024/08/12, williameclee@arizona.edu (@williameclee)
+
 function dataFileAttr = dataattrchar(varargin)
     p = inputParser;
     addOptional(p, 'Upscale', 0, ...
@@ -10,7 +33,7 @@ function dataFileAttr = dataattrchar(varargin)
     upscale = p.Results.Upscale;
     latlim = p.Results.Latlim;
     buf = p.Results.Buffer;
-    moreBuf = p.Results.MoreBuffers;
+    moreBufs = p.Results.MoreBuffers;
 
     if length(latlim) == 2
 
@@ -31,19 +54,19 @@ function dataFileAttr = dataattrchar(varargin)
 
     end
 
-    if ~(buf == 0) || ~isempty(moreBuf)
+    if ~(buf == 0) || ~isempty(moreBufs)
         dataFileAttr{2} = num2str(buf);
 
-        if ~isempty(moreBuf)
-            moreBuf = formatmorebuf(moreBuf);
+        if ~isempty(moreBufs)
+            moreBufs = formatmorebuf(moreBufs);
 
-            for i = 1:2:length(moreBuf)
-                moreBuf{i} = [moreBuf{i}, num2str(moreBuf{i + 1})];
+            for i = 1:2:length(moreBufs)
+                moreBufs{i} = [moreBufs{i}, num2str(moreBufs{i + 1})];
             end
 
-            moreBuf = char(join(moreBuf(1:2:end), '_'));
+            moreBufs = char(join(moreBufs(1:2:end), '_'));
 
-            dataFileAttr{2} = [dataFileAttr{2}, '_', moreBuf];
+            dataFileAttr{2} = [dataFileAttr{2}, '_', moreBufs];
         end
 
     end
@@ -87,7 +110,8 @@ function dataFileAttr = dataattrchar(varargin)
         dataFileAttr(emptyBeforeLast(emptyCellsIndex)) = {'0'};
         % Add a hyphen before each attribute
         if length(dataFileAttr) > 1
-            dataFileAttr(2:end) = cellfun(@(x) ['-', x], dataFileAttr(2:end), ...
+            dataFileAttr(2:end) = ...
+                cellfun(@(x) ['-', x], dataFileAttr(2:end), ...
                 'UniformOutput', false);
         end
 
@@ -102,6 +126,9 @@ function dataFileAttr = dataattrchar(varargin)
 end
 
 %% Subfunctions
+% Sort and format the moreBufs
+% It also creates abbrevaitions for the domain names in the moreBufs to
+% keep the file name short
 function moreBuf = formatmorebuf(moreBuf)
     moreBufDomain = lower(moreBuf(1:2:end));
     moreBufWidth = moreBuf(2:2:end);

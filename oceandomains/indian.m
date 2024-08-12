@@ -65,8 +65,11 @@
 %       International Hydrographic Organization & Sieger, R. (2012).
 %       doi: 10.1594/PANGAEA.777975
 %
+% See also
+%   OCEANPOLY, GSHHSCOASTLINE, BUFFER4OCEANS
+%
 % Last modified by
-%   2024/08/09, williameclee-at-arizona.edu
+%   2024/08/09, williameclee@arizona.edu (@williameclee)
 
 function varargout = indian(varargin)
     %% Initialisation
@@ -102,7 +105,7 @@ function varargout = indian(varargin)
 
     %% Compute the ocean boundary
     % Find the ocean boundary (not accounting for the coastlines)
-    [oceanPoly, oceanLatlim, oceanLonlim] = findoceanboundary( ...
+    [oceanPoly, oceanLatlim, oceanLonlim] = oceanpoly( ...
         oceanParts, latlim, lonOrigin, 'BeQuiet', beQuiet);
     % Find the coastline
     [~, coastPoly] = gshhscoastline('l', 'Buffer', buf, ...

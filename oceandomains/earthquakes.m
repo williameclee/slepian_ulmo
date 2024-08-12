@@ -34,7 +34,7 @@
 %   >>  XY = earthquakes(3, 10, epicentres);
 %
 % Last modified by
-%   2024/08/09, williameclee-at-arizona.edu
+%   2024/08/09, williameclee@arizona.edu (@williameclee)
 
 function XY = earthquakes(varargin)
     %% Initilisation
@@ -97,7 +97,7 @@ function XY = earthquakes(varargin)
     set(gcf, 'Name', figName, 'NumberTitle', 'off')
     clf
 
-    dirtymap(XY)
+    plotqdm(XY)
     hold on
     plot(coastlon, coastlat, 'k')
     plot(XY(:, 1), XY(:, 2), 'b.-')
