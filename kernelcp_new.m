@@ -73,7 +73,7 @@
 %   PLOTSLEP, PLM2AVG, KERNELC, LEGENDREPRODINT, DLMLMP
 %
 % Last modified by
-%   2024/08/09, williameclee@arizona.edu (@williameclee)
+%   2024/08/13, williameclee@arizona.edu (@williameclee)
 %   2023/11/11, fjsimons@alum.mit.edu (@fjsimons)
 %   2017/05/26, plattner@alumni.ethz.ch (@AlainPlattner)
 %   2016/09/23, charig@princeton.edu (@harig00)
@@ -81,18 +81,11 @@
 function varargout = kernelcp_new(varargin)
     % Add path to the auxiliary functions
     addpath(fullfile(fileparts(mfilename('fullpath')), 'aux'));
-    % Parse inputs
-    [Lmax, domain, pars, ngl, rotb, forceNew, saveData, beQuiet] = ...
-        parseinputs(varargin);
-    K1 = nan; %#ok<NASGU>
-    K = nan; %#ok<NASGU>
+    addpath(fullfile(fileparts(mfilename('fullpath')), 'demos'));
+    % Demos
+    if ischar(varargin{1}) || isstring(varargin{1})
 
-    tic;
-
-    %% Demos
-    if ischar(Lmax)
-
-        switch Lmax
+        switch varargin{1}
             case 'demo1'
                 kernelcp_demo1
             case 'demo2'
@@ -107,7 +100,17 @@ function varargout = kernelcp_new(varargin)
                 error(['Unknown demo ', demoname])
         end
 
+        return
+
     end
+
+    % Parse inputs
+    [Lmax, domain, pars, ngl, rotb, forceNew, saveData, beQuiet] = ...
+        parseinputs(varargin);
+    K1 = nan; %#ok<NASGU>
+    K = nan; %#ok<NASGU>
+
+    tic;
 
     %% Initialisation
     % Generic path name that I like

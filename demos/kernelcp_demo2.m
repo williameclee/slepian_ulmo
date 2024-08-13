@@ -3,8 +3,9 @@
 %
 % See also
 %   KERNELCP, KERNELCP_DEMO1, KERNELCP_DEMO3, KERNELCP_DEMO4, KERNELCP_DEMO5
-% Authored by
-% 	En-Chi Lee <williameclee@arizona.edu>, 2024-07-12
+%
+% Last modified by
+%   2024/07/12, williameclee@arizona.edu (@williameclee)
 
 function kernelcp_demo2
     L = 18;
@@ -58,13 +59,13 @@ function kernelcp_demo2
         p = plotslep(C2, index, 2);
         axes(ha(index + 2 * J)) %#ok<LAXES>
         % The rotated eigenfunctions of the non-polar kernel
-        d = plotplm(CC{index}, [], [], 4, 1);
+        d = plotplm(CC{index}, [], [], 4, 1, "BeQuiet", true);
         set(ah, 'clim', halverange(d, 100))
         % Let us appraise the comparison also - knowing that the sign remains
         % arbitrary
         a = minmax(abs(d - p) ./ d);
         b = minmax(abs(d + p) ./ d);
-        fprintf('The min/max relative difference is %8.3e | %8.3e', ...
+        fprintf('The min/max relative difference is %8.3e | %8.3e\n', ...
             [max([a(1) b(1)]) min([a(2) b(2)])])
     end
 

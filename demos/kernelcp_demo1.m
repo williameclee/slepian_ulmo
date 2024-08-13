@@ -76,9 +76,9 @@ function kernelcp_demo1
 
     % Cosmetics
     longticks(ah)
-    set(ah(1:2), 'ytick', addmoff((0:L) - 1) + 1, 'ytickl', 0:L)
-    set(ah(3), 'ytick', ordshew, 'ytickl', num2cell(Km(ordshew)))
-    set(ah, 'xtick', [1 (L + 1) ^ 2], 'xtickl', [1 (L + 1) ^ 2])
+    set(ah(1:2), 'ytick', addmoff((0:L) - 1) + 1, 'yticklabel', 0:L)
+    set(ah(3), 'ytick', ordshew, 'yticklabel', num2cell(Km(ordshew)))
+    set(ah, 'xtick', [1 (L + 1) ^ 2], 'xticklabel', [1 (L + 1) ^ 2])
     fig2print(gcf, 'landscape')
     figdisp([], sprintf('antarctica_%i', L))
 end

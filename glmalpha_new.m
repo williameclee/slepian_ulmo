@@ -109,7 +109,7 @@
 %   back...
 %
 % Last modified by
-%   2024/08/08, williameclee@arizona.edu (@williameclee)
+%   2024/08/13, williameclee@arizona.edu (@williameclee)
 %   2017/12/01, fjsimons@alum.mit.edu (@fjsimons)
 %   2016/06/27, charig@princeton.edu (@harig00)
 %   2016/10/11, plattner@alumni.ethz.ch (@AlainPlattner)
@@ -120,22 +120,26 @@ function varargout = glmalpha_new(varargin)
     addpath(fullfile(fileparts(mfilename('fullpath')), 'aux'));
     addpath(fullfile(fileparts(mfilename('fullpath')), 'demos'));
 
+    % demos
+    if ischar(varargin{1}) || isstring(varargin{1})
+
+        switch varargin{1}
+            case 'demo1'
+                glmalpha_demo1;
+            case 'demo2'
+                glmalpha_demo2;
+            case 'demo3'
+                glmalpha_demo3;
+        end
+
+        return
+
+    end
+
     % Parse inputs
     [domain, L, sord, blox, upco, resc, truncation, anti, rotb, ...
          forceNew, saveData, beQuiet] = ...
         parseinputs(varargin);
-
-    % demos
-    if strcmp(domain, 'demo1')
-        glmalpha_demo1;
-        return
-    elseif strcmp(domain, 'demo2')
-        glmalpha_demo2;
-        return
-    elseif strcmp(domain, 'demo3')
-        glmalpha_demo3;
-        return
-    end
 
     defval('mesg', 'GLMALPHA Check passed')
     % Hold all messages

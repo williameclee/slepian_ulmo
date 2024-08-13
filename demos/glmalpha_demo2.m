@@ -1,8 +1,8 @@
 %% GLMALPHA_DEMO2
 % This is demo 2 from GLMALPHA.
 %
-% Authored by:
-% 	En-Chi Lee <williameclee@arizona.edu>, 2024-07-12
+% Last modified by
+%   2024/07/12, williameclee@arizona.edu (@williameclee)
 
 function glmalpha_demo2
     % Make a demo for Saarimaki et al.
