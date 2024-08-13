@@ -45,7 +45,7 @@
 %   SPHAREA
 %
 % Last modified by
-%   2021/08/10, williameclee@arizona.edu (@williameclee)
+%   2021/08/13, williameclee@arizona.edu (@williameclee)
 
 classdef GeoDomain
 
@@ -122,8 +122,11 @@ classdef GeoDomain
             p = inputParser;
             addParameter(p, 'RotateBack', false, ...
                 @(x) islogical(x) || isnumeric(x));
+            addParameter(p, 'Anchors', false, ...
+                @(x) islogical(x) || isnumeric(x));
             parse(p, varargin{:});
             rotateBack = logical(p.Results.RotateBack);
+            addAnchors = logical(p.Results.Anchors);
 
             if ~strcmp(obj.Domain, 'antarctica') && rotateBack
                 rotateBack = false;
@@ -133,7 +136,12 @@ classdef GeoDomain
 
             lonlat = feval(obj.Domain, "Upscale", obj.Upscale, ...
                 "Buffer", obj.Buffer, "Latlim", obj.Latlim, ...
-                "MoreBuffers", obj.MoreBuffers, "RotateBack", rotateBack);
+                "MoreBuffers", obj.MoreBuffers, "RotateBack", rotateBack, ...
+                'BeQuiet', true);
+
+            if addAnchors
+                lonlat = addanchors(lonlat);
+            end
 
             if nargout > 0
                 return

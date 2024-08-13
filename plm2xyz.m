@@ -6,6 +6,7 @@
 % degree resolution 'h' [default: approximate Nyquist degree].
 %
 % Syntax
+% [r, lon, lat, Plm, h] = plm2xyz(lmcosi, h)
 % [r, lon, lat, Plm, h] = plm2xyz(lmcosi, h, c11cmn, lmax, latmax, Plm)
 % [r, lon, lat, Plm, h] = plm2xyz(lmcosi, lat, lon, lmax, latmax, Plm)
 %
