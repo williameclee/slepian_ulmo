@@ -3,6 +3,8 @@
 A fork of `csdms-contrib` MATLAB repositories that are dedicated to constructing Slepian functions over ocean basins.
 There are also functions for spatial visualisation.
 
+![Example of Slepian functions over the Pacific Ocean](images/cover.svg)
+
 ## Functionalities
 
 Functions in this repository may call or overwrite functions from the following packages. Please ensure they are installed and the paths are configured properly before running the functions in this repository.
