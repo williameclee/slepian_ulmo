@@ -423,6 +423,6 @@ function plotvweightmap(G, V, domain, rotb)
     axis tight
     grid on
 
-    xticklabels(cellfun(@formatlonticks, num2cell(xticks), "UniformOutput", false))
-    yticklabels(cellfun(@formatlatticks, num2cell(yticks), "UniformOutput", false))
+    formatlonticks
+    formatlatticks
 end

@@ -1,10 +1,10 @@
 %% LOADCBAR
 % Loads a colourbar with specified settings.
-% This function loads a colourbar with specified settings. It creates
-% a colourmap using the specified colourmap name and number of colour
-% levels. The colourbar is then adjusted to the specified colour
-% limits and labelled with the specified name. Additional figure
-% settings are provided through the FSettings structure.
+% This function loads a colourbar with specified settings. It creates a
+% colourmap using the specified colourmap name and number of colour levels.
+% The colourbar is then adjusted to the specified colour limits and
+% labelled with the specified name. Additional figure settings are provided
+% through the FSettings structure.
 %
 % Syntax
 %   loadcbar(levels)
@@ -49,7 +49,8 @@
 function varargout = loadcbar(varargin)
     %% Initialisation
     % Parse inputs
-    [cLevels, cLim, cbarLabel, cmapName, FSettings, location] = parseinputs(varargin{:});
+    [cLevels, cLim, cbarLabel, cmapName, FSettings, location] = ...
+        parseinputs(varargin{:});
 
     %% Compute the colour levels and centre
     [~, cLevels] = loadcmap(cmapName, cLevels);

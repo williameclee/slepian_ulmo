@@ -62,6 +62,8 @@ function slep2plm_demo(varargin)
 
     contourfm(lat, lon, mesh, cLevels, "LineStyle", 'none')
     plotm(coastLonlat(:, 2), coastLonlat(:, 1), 'k', "LineWidth", 0.5)
+    plotm(domain.Lat("Anchors", true), domain.Lon("Anchors", true), ...
+        'k', "LineWidth", 1.5)
 
     % Map after localisation
     subplot(1, 2, 2)

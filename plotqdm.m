@@ -43,10 +43,8 @@ function h = plotqdm(varargin)
     xlim(xLim)
     ylim(yLim)
 
-    xticklabels(cellfun(@formatlonticks, num2cell(xticks), ...
-        "UniformOutput", false))
-    yticklabels(cellfun(@formatlatticks, num2cell(yticks), ...
-        "UniformOutput", false))
+    formatlonticks
+    formatlatticks
 
     set(gca, 'Box', 'on', 'Layer', 'top')
 

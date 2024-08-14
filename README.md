@@ -1,6 +1,6 @@
 # slepian_ulmo
 
-A fork of `csdms-contrib` MATLAB repositories that are dedicated to constructing Slepian functions over ocean basins.
+A fork of csdms-contrib MATLAB repositories dedicated to constructing Slepian functions over ocean basins.
 There are also functions for spatial visualisation.
 
 ![Example of Slepian functions over the Pacific Ocean](images/cover.svg)
@@ -56,8 +56,12 @@ The ultimate goal is to drop the `_new` suffixes and replace the original functi
 ### Visualisations
 
 - `eigenwmesh`: Returns a mesh of the eigenvalue-weighted power map of the given Slepian functions.
+- `equalearth` and `equalearthd`: Project a longitude-latitude vertex to the Equal Earth projection. 
 - `loadbasemap`: Loads an axesm-based map of the given geographic domain.
 - `plotqdm`: Plots a quick-and-dirty map (i.e. on a normal axes object) of the given coordinates.
+
+Other supporting functions for visualisation include:
+`formatlonticks`, `fotmatlatticks`, `loadcbar`, `loadcmap`, and more.
 
 ### Other supporting functions
 
@@ -65,4 +69,4 @@ The ultimate goal is to drop the `_new` suffixes and replace the original functi
 
 ---
 Last modified by:
-- [En-Chi Lee (@williameclee)](https://github.com/williameclee), 2024/08/13
+- [En-Chi Lee (@williameclee)](https://github.com/williameclee), 2024/08/14
