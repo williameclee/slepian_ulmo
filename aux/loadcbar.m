@@ -11,7 +11,7 @@
 %   loadcbar(limits, h)
 %   loadcbar(__, 'Title', title, 'CmapName', name)
 %   loadcbar(__, 'FSettings', FigureSettings)
-%   [cLevels, cbar] = loadcbar(__)
+%   [cbar, levels] = loadcbar(__)
 %
 % Input arguments
 %  levels - Colour levels
@@ -65,13 +65,11 @@ function varargout = loadcbar(varargin)
         cbar.Label.String = cbarLabel;
     end
 
-    if isempty(FSettings)
-        return
+    if ~isempty(FSettings)
+        set(cbar, 'LineWidth', FSettings.LwidthThin, ...
+            'FontName', FSettings.Fname, ...
+            'FontSize', FSettings.FsizeNormal, 'FontWeight', 'normal')
     end
-
-    set(cbar, 'LineWidth', FSettings.LwidthThin, ...
-        'FontName', FSettings.Fname, ...
-        'FontSize', FSettings.FsizeNormal, 'FontWeight', 'normal')
 
     if nargout == 0
         return
@@ -87,7 +85,7 @@ function varargout = parseinputs(varargin)
     addOptional(p, 'cLim', [-1, 1], @isnumeric);
     addOptional(p, 'cStep', [], @isnumeric);
     addOptional(p, 'Title', '', @ischar);
-    addOptional(p, 'CmapName', 'seismic', @(x) ischar(x) || isstring(x));
+    addOptional(p, 'Colormap', 'seismic', @(x) ischar(x) || isstring(x));
     addOptional(p, 'FSettings', [], @isstruct);
     addParameter(p, 'Location', 'eastoutside', @ischar);
     parse(p, varargin{:});
@@ -110,7 +108,7 @@ function varargout = parseinputs(varargin)
 
     cLim = [min(cLevels), max(cLevels)];
     cbarTitle = p.Results.Title;
-    cmapName = char(p.Results.CmapName);
+    cmapName = char(p.Results.Colormap);
     FSettings = p.Results.FSettings;
     location = p.Results.Location;
 

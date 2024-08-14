@@ -1,17 +1,13 @@
 %% EQUALEARTH_DEMO
 % This is a demo for EQUALEARTH and EQUALEARTHD.
 %
+% See also
+%   GEODOMAIN, OCEANS
+%
 % Last modified by
 %   2024/08/14, williameclee@arizona.edu (@williameclee)
 
 function equalearth_demo(varargin)
-    %% Initialisation
-    if nargin == 0
-        funName = '';
-    else
-        funName = sprintf(' (%s)', upper(char(varargin{1})));
-    end
-
     %% Generating data
     lonOrigin = 200;
 
@@ -25,7 +21,13 @@ function equalearth_demo(varargin)
     bboxXY = equalearthd(bbox, lonOrigin);
 
     %% Plotting
-    figName = sprintf('Equal Earth Projection%s', funName);
+    figName = 'Equal Earth Projection';
+
+    if nargin > 0
+        funName = varargin{1};
+        figName = sprintf('%s (%s)', figName, upper(funName));
+    end
+
     figure(999)
     set(gcf, 'Name', figName, 'NumberTitle', 'off')
     clf

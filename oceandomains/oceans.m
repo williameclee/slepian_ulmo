@@ -77,9 +77,10 @@ function varargout = oceans(varargin)
     % Suppress warnings
     warning('off', 'MATLAB:polyshape:repairedBySimplify');
     % Parse the inputs
+    lonOriginD = 200;
     [upscale, latlim, buf, moreBufs, lonOrigin, ~, ...
          forceNew, saveData, beQuiet] = ...
-        parseoceaninputs(varargin, 'DefaultLonOrigin', 200);
+        parseoceaninputs(varargin, 'DefaultLonOrigin', lonOriginD);
     oceanParts = ...
         {'Atlantic Ocean', 'Indian Ocean', ...
          'Pacific Ocean, eastern part', ...
@@ -98,6 +99,12 @@ function varargout = oceans(varargin)
 
             if beQuiet < 2
                 fprintf('%s loaded %s\n', upper(mfilename), dataFile)
+            end
+
+            if lonOrigin ~= lonOriginD
+                [Y, X] = flatearthpoly(XY(:, 2), XY(:, 1), lonOrigin);
+                p = polyshape(X, Y);
+                XY = poly2xy(p);
             end
 
             varargout = returncoastoutputs(nargout, XY, p);

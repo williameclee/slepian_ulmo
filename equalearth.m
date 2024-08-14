@@ -8,11 +8,20 @@
 %
 % Syntax
 % 	equalearth('demo')
+%		Runs a demo for the Equal Earth projection.
 % 	[XY, X, Y] = equalearth(lonlat)
-% 	[XY, X, Y] = equalearth(p)
+%		Returns the Equal Earth projection of the input longitude-latitude
+%       points.
+% 	[p, X, Y] = equalearth(p)
+%		Returns the Equal Earth projection of the input polyshape object.
 % 	[XY, X, Y] = equalearth(lon, lat)
+%		Returns the Equal Earth projection of the input longitude and
+%       latitude pairs.
 % 	[XY, X, Y] = equalearth(__, lonOrigin)
+%		Returns the Equal Earth projection of the input points with the
+%       specified longitude origin.
 % 	equalearth(__)
+%		Plots the Equal Earth projection of the input points.
 %
 % Input arguments
 % 	lonlat - A N-by-2 matrix of longitude-latitude pairs in radians
@@ -23,6 +32,7 @@
 %
 % Output arguments
 % 	XY - A N-by-2 matrix of the Equal Earth projection of the input points
+%	p - The polyshape object of the Equal Earth projection
 % 	X, Y - The X- and Y-coordinates of the Equal Earth projection
 %
 % Examples
@@ -48,7 +58,10 @@ function varargout = equalearth(varargin)
     addpath(fullfile(fileparts(mfilename('fullpath')), 'demos'));
 
     % Demos
-    if strcmpi(varargin{1}, 'demo')
+    if isempty(varargin) || strcmpi(varargin{1}, 'demo')
+        fprintf('%s running demo for the Equal earth projection\n', ...
+            upper(mfilename))
+        fprintf('Displaying the extent of the oceans in the Equal Earth projection\n')
         equalearth_demo(mfilename)
         return
     end

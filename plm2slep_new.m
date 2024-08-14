@@ -4,11 +4,18 @@
 % harmonic expansion coefficients are given.
 %
 % Syntax
-%   [falpha, V, N] = plm2slep(lmcosi, r, L, phi, theta, omega)
-%   [falpha, V, N] = plm2slep(lmcosi, domain, L)
-%   [falpha, V, N] = plm2slep(__, nosort, truncation)
-%   [__, MTAP, G] = plm2slep(__)
 %   plm2slep(demoId)
+%       Runs a demo with the specified name.
+%   [falpha, V, N] = plm2slep(lmcosi, r, L, phi, theta, omega)
+%       Finds the expansion coefficients of the function into the Slepian
+%       basis of a polar cap.
+%   [falpha, V, N] = plm2slep(lmcosi, domain, L)
+%       Finds the expansion coefficients of the function into the Slepian
+%       basis of a geographic domain.
+%   [falpha, V, N] = plm2slep(__, nosort, truncation)
+%       Finds the expansion with the specified sorting and the number of
+%       eigenfunctions to use.
+%   [__, MTAP, G] = plm2slep(__)
 %
 % Input arguments
 %   lmcosi - Standard-type real spherical harmonic expansion coefficients
@@ -32,7 +39,8 @@
 %       The default value is all the (L+1)^2 eigenfunctions.
 %
 % Output arguments
-% falpha - The expansion coefficients of the function into the Slepian basis
+%   falpha - The expansion coefficients of the function into the Slepian
+%       basis
 %   V - The eigenvalues of the Slepian functions in question
 %   N - The Shannon number
 %   MTAP - The orders of the Slepian functions in question, if preserved

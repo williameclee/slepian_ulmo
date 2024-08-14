@@ -4,11 +4,18 @@
 % basis) expansion coefficients are known.
 %
 % Syntax
-%   [lmcosi, V, N] = slep2plm(falpha, r, L, phi, theta, omega)
-%   [lmcosi, V, N] = slep2plm(falpha, domain, L)
-%   [lmcosi, V, N] = slep2plm(__, 'Truncation', truncation)
-%   [__, MTAP, truncation] = slep2plm(__)
 %   slep2plm('demo')
+%       Runs a demo for the Slepian to spherical harmonic expansion.
+%   [lmcosi, V, N] = slep2plm(falpha, r, L, phi, theta, omega)
+%       Finds the expansion coefficients of the Slepian basis of a polar
+%       cap into the spherical harmonics.
+%   [lmcosi, V, N] = slep2plm(falpha, domain, L)
+%       Finds the expansion coefficients of the Slepian basis of a
+%       geographic domain into the spherical harmonics.
+%   [lmcosi, V, N] = slep2plm(__, 'Truncation', truncation)
+%       Finds the expansion with the specified number of Slepian functions
+%       to use.
+%   [__, MTAP, truncation] = slep2plm(__)
 %
 % Input arguments
 %   falpha - Slepian expansion coefficients

@@ -31,10 +31,10 @@ function vout = returncoastoutputs(nOut, XY, oceanPoly, varargin)
     clf
     set(gcf, 'Name', figTitle, 'NumberTitle', 'off')
 
-    plotqdm(XY)
-    hold on
-    plot(XY(:, 1), XY(:, 2), 'k.-')
-    hold off
+    plotqdm(XY, 'k')
+    % hold on
+    % plot(XY(:, 1), XY(:, 2), 'k.-')
+    % hold off
     title(['Point count: ', num2str(size(XY, 1))])
 
 end

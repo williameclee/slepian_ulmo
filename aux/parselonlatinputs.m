@@ -37,6 +37,13 @@ function varargout = parselonlatinputs(varargin)
         % First input is a polyshape
         [lon, lat] = poly2xy(varargin{1});
         varargin(1) = [];
+    elseif isa(varargin{1}, 'GeoDomain')
+        % First input is a GeoDomain
+        domain = varargin{1};
+        lonlat = domain.Lonlat;
+        lon = lonlat(:, 1);
+        lat = lonlat(:, 2);
+        varargin(1) = [];
     else
         error('Invalid input argument type for the first argument')
     end

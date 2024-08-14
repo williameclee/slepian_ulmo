@@ -1,9 +1,44 @@
+%% FORMATLONTICKS
+% Format longitude tick labels for a plot.
+%
+% Syntax
+%   formatlonticks
+%       Formats the x-axis tick labels of the current plot as longitude
+%       ticks.
+%   formatlonticks(lon)
+%       Formats the x-axis tick labels of the current plot as longitude
+%       ticks with the specified values.
+%   formatlonticks(ax)
+%       Formats the x-axis tick labels of the specified axes as longitude
+%       ticks.
+%   lonL = formatlonticks(__)
+%       Returns the formatted longitude tick labels as a cell array of
+%       character vectors.
+%
+% Input arguments
+%   lon - Longitude ticks in degrees
+%   ax - Axes object to format
+%
+% Output arguments
+%   lonL - Formatted longitude tick labels
+%
+% Last modified by
+%   2024/08/14, williameclee@arizona.edu (@williameclee)
+
 function varargout = formatlonticks(varargin)
 
     if nargin == 0
         lon = xticks;
     elseif nargin == 1
-        lon = varargin{1};
+
+        if isnumeric(varargin{1})
+            lon = varargin{1};
+        elseif isa(varargin{1}, 'matlab.graphics.axis.Axes')
+            lon = xticks(varargin{1});
+        else
+            error('Invalid input type %s', class(varargin{1}));
+        end
+
     else
         error('Invalid number of arguments')
     end
@@ -18,11 +53,18 @@ function varargout = formatlonticks(varargin)
         error('Invalid input type %s', class(lon));
     end
 
-    if nargout == 0
-        xticklabels(lonL)
-        return
-    else
+    if nargout > 0
         varargout = {lonL};
+        return
+    end
+
+    clear varargout
+    
+    if ~isempty(varargin) && ...
+            isa(varargin{1}, 'matlab.graphics.axis.Axes')
+        xticklabels(varargin{1}, lonL)
+    else
+        xticklabels(lonL)
     end
 
 end

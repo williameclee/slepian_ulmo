@@ -1,14 +1,16 @@
 %% KERNELCP
 % Calculates the localisation matrix for some domain on the sphere.
-% NOT FOR POLAR PATCHES! AND NOT GOOD FOR NEAR-POLAR PATCHES! (See
+% Not for polar patches! And not good for near-polar patches! (See
 % GRUNBAUM)
 % NOT WITHOUT MODIFICATIONS FOR REGIONS CONTAINING THE NORTH POLE OR THE
-% SOUTH POLE! (For that, see GLMALPHA). Unit normalization as in YLM.
-% Parallel version of KERNELC.
+% SOUTH POLE! (For that, see GLMALPHA). Unit normalisation as in YLM.
+% This is the parallel version of KERNELC.
 %
 % Syntax
-%   [Kernel, XY, K1, K] = kernelcp(Lmax, dom, pars, ngl, rotb)
 %   kernelcp(demoId)
+%       Runs a demonstration of the KERNELCP function.
+%   [Kernel, XY, K1, K] = kernelcp(Lmax, dom, pars, ngl, rotb)
+%       Calculates the localisation kernel for a given domain.
 %
 % Input arguments
 %   Lmax - Maximum angular degree (bandwidth)

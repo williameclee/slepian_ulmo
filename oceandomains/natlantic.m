@@ -95,6 +95,12 @@ function varargout = natlantic(varargin)
                 fprintf('%s loaded %s\n', upper(mfilename), dataFile)
             end
 
+            if lonOrigin ~= lonOriginD
+                [Y, X] = flatearthpoly(XY(:, 2), XY(:, 1), lonOrigin);
+                p = polyshape(X, Y);
+                XY = poly2xy(p);
+            end
+
             varargout = returncoastoutputs(nargout, XY, p);
 
             return

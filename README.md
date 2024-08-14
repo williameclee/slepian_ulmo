@@ -14,7 +14,7 @@ Functions in this repository may call or overwrite functions from the following 
 - [slepian_delta](https://github.com/csdms-contrib/slepian_delta.git)
 - [MatlabColourmapGenerator](https://github.com/williameclee/MatlabColourmapGenerator)
 
-[MatlabColourmapGenerator](https://github.com/williameclee/MatlabColourmapGenerator) is not necessary, but it generates better colours and colourmaps.
+[MatlabColourmapGenerator](https://github.com/williameclee/MatlabColourmapGenerator) is not necessary, but it generates better-looking colours and colourmaps (like the one above).
 
 ### Geographic domains
 
