@@ -68,16 +68,18 @@
 %   OCEANPOLY, GSHHSCOASTLINE, BUFFER4OCEANS
 %
 % Last modified by
-%   2024/08/09, williameclee@arizona.edu (@williameclee)
+%   2024/08/15, williameclee@arizona.edu (@williameclee)
 
 function varargout = satlantic(varargin)
     %% Initialisation
     % Suppress warnings
     warning('off', 'MATLAB:polyshape:repairedBySimplify');
+
     % Parse the inputs
+    lonOriginD = 0;
     [upscale, latlim, buf, moreBufs, lonOrigin, ~, ...
          forceNew, saveData, beQuiet] = ...
-        parseoceaninputs(varargin, 'DefaultLonOrigin', 0);
+        parseoceaninputs(varargin, 'DefaultLonOrigin', lonOriginD);
     oceanParts = 'South Atlantic Ocean';
 
     %% Check if the data file exists

@@ -46,6 +46,7 @@ A new class is introduced as an interface to geographic domains:
 The following functions have also been modified (mainly to support `GeoDomain`), and can probably safely replace the original functions:
 
 - `glmalpha` (from slepian_alpha) → `glmalpha_new`
+- `integratebasis` (from slepian_delta) → `integratebasis_new` (not tested yet)
 - `kernelcp` (from slepian_alpha) → `kernelcp_new`
 - `plm2slep` (from slepian_bravo) → `plm2slep_new`
 - `plm2xyz` (from slepian_alpha)

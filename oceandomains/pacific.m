@@ -69,16 +69,18 @@
 %   OCEANPOLY, GSHHSCOASTLINE, BUFFER4OCEANS
 %
 % Last modified by
-%   2024/08/09, williameclee@arizona.edu (@williameclee)
+%   2024/08/15, williameclee@arizona.edu (@williameclee)
 
 function varargout = pacific(varargin)
     %% Initialisation
     % Suppress warnings
     warning('off', 'MATLAB:polyshape:repairedBySimplify');
+
     % Parse the inputs
+    lonOriginD = 180;
     [upscale, latlim, buf, moreBufs, lonOrigin, ~, ...
          forceNew, saveData, beQuiet] = ...
-        parseoceaninputs(varargin, 'DefaultLonOrigin', 180);
+        parseoceaninputs(varargin, 'DefaultLonOrigin', lonOriginD);
     oceanParts = ...
         {'Pacific Ocean, eastern part', ...
      'Pacific Ocean, western part'};

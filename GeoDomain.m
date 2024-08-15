@@ -45,7 +45,7 @@
 %   SPHAREA
 %
 % Last modified by
-%   2021/08/13, williameclee@arizona.edu (@williameclee)
+%   2021/08/14, williameclee@arizona.edu (@williameclee)
 
 classdef GeoDomain
 
@@ -118,7 +118,7 @@ classdef GeoDomain
         end
 
         % Longitude and latitude arrays
-        function lonlat = Lonlat(obj, varargin)
+        function varargout = Lonlat(obj, varargin)
             p = inputParser;
             addOptional(p, 'LonOrigin', [], ...
                 @(x) isnumeric(x) && isscalar(x));
@@ -131,23 +131,39 @@ classdef GeoDomain
             rotateBack = logical(p.Results.RotateBack);
             addAnchors = logical(p.Results.Anchors);
 
-            if ~strcmp(obj.Domain, 'antarctica') && rotateBack
+            if rotateBack && ...
+                    ~ismember(obj.Domain, {'antarctica', 'arctic'})
                 rotateBack = false;
                 warning('GeoDomain:unsupportedRotateBack', ...
                 'RotateBack is only supported for Antarctica');
             end
 
-            lonlat = feval(obj.Domain, "Upscale", obj.Upscale, ...
-                "Buffer", obj.Buffer, "Latlim", obj.Latlim, ...
-                "NearBy", obj.NearBy, "LonOrigin", lonOrigin, ...
-                "MoreBuffers", obj.MoreBuffers, "RotateBack", rotateBack, ...
-                'BeQuiet', true);
+            try
+                [lonlat, lonc, latc] = feval(obj.Domain, "Upscale", obj.Upscale, ...
+                    "Buffer", obj.Buffer, "Latlim", obj.Latlim, ...
+                    "NearBy", obj.NearBy, "LonOrigin", lonOrigin, ...
+                    "MoreBuffers", obj.MoreBuffers, "RotateBack", rotateBack, ...
+                    'BeQuiet', true);
+            catch
+                lonlat = feval(obj.Domain, "Upscale", obj.Upscale, ...
+                    "Buffer", obj.Buffer, "Latlim", obj.Latlim, ...
+                    "NearBy", obj.NearBy, "LonOrigin", lonOrigin, ...
+                    "MoreBuffers", obj.MoreBuffers, "RotateBack", rotateBack, ...
+                    'BeQuiet', true);
+            end
 
             if addAnchors
                 lonlat = addanchors(lonlat);
             end
 
             if nargout > 0
+
+                try
+                    varargout = {lonlat, lonc, latc};
+                catch
+                    varargout = {lonlat};
+                end
+
                 return
             end
 

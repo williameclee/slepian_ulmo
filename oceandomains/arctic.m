@@ -6,6 +6,7 @@
 %   XY = arctic(upscale, buf, latlim, morebuffers)
 %   XY = arctic(__, 'Name', value)
 %   [XY, p] = arctic(__)
+%   [XY, lonc, latc] = arctic(__)
 %	flag = arctic('rotated')
 %
 % Input arguments
@@ -47,6 +48,8 @@
 %   p - Polygon of the domain boundary
 %       Note that this is an ordinary polyshape object, and not a geoshape
 %       or geopolyshape.
+%   lonc, latc - Longitude and latitude by which the coordinates are rotated
+%       The values are 0 and 90, respectively (i.e. rotated to the equator).
 %   map - Map of the domain boundary
 %       When there is no output argument, a quick and dirty map will be
 %       displayed.
@@ -75,7 +78,7 @@
 %   OCEANPOLY, GSHHSCOASTLINE, BUFFER4OCEANS
 %
 % Last modified by
-%   2024/08/10, williameclee@arizona.edu (@williameclee)
+%   2024/08/15, williameclee@arizona.edu (@williameclee)
 
 function varargout = arctic(varargin)
     %% Initialisation
@@ -88,9 +91,10 @@ function varargout = arctic(varargin)
     end
 
     % Parse the inputs
+    lonOriginD = 180;
     [upscale, latlim, buf, moreBufs, lonOrigin, rotateBack, ...
          forceNew, saveData, beQuiet] = ...
-        parseoceaninputs(varargin);
+        parseoceaninputs(varargin, "DefaultLonOrigin", lonOriginD);
     oceanParts = ...
         {'Arctic Ocean, eastern part', ...
      'Arctic Ocean, western part'};
@@ -118,6 +122,10 @@ function varargout = arctic(varargin)
 
             varargout = returncoastoutputs(nargout, XY, p);
 
+            if nargout == 3
+                varargout = {XY, 0, 90};
+            end
+
             return
         end
 
@@ -142,13 +150,17 @@ function varargout = arctic(varargin)
     % Turn the polygon into a well-defined curve
     XY = poly2xy(p, upscale);
 
-	% Rotate the coordinates if not asked to rotate back
+    % Rotate the coordinates if not asked to rotate back
     if ~rotateBack
         XY = rotateXY(XY);
     end
 
     %% Save and return data
     varargout = returncoastoutputs(nargout, XY, p);
+
+    if nargout == 3
+        varargout = {XY, 0, 90};
+    end
 
     if ~saveData
         return

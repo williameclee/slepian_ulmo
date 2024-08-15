@@ -64,8 +64,7 @@ function [p, latlim, lonmin] = oceanpoly(oceanNames, varargin)
         p.Vertices(:, 1), p.Vertices(:, 2));
 
     [lon, lat] = closecoastline(lon, lat);
-    [lat, lon] = flatearthpoly( ...
-        lat, lon, lonOrigin);
+    [lat, lon] = flatearthpoly(lat, lon, lonOrigin);
 
     p = polyshape(lon, lat);
     p = removepolarcaps(p, latlim, lonOrigin);

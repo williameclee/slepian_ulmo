@@ -33,7 +33,7 @@
 %   COEF2LMCOSI, PLM2XYZ
 %
 % Last modified by
-%   2024/08/10, williameclee@arizona.edu (@williameclee)
+%   2024/08/15, williameclee@arizona.edu (@williameclee)
 
 function [mesh, lon, lat] = eigwmesh(varargin)
     %% Initialisation
@@ -46,7 +46,7 @@ function [mesh, lon, lat] = eigwmesh(varargin)
         fprintf('%s running demo for the eigenvalue-weighted power map\n', ...
             upper(mfilename))
         fprintf('Displaying the normalised eigenvalue-weighted power of Slepian functions over the oceans\n')
-        equalearth_demo(mfilename)
+        eigwmesh_demo(mfilename)
         return
     end
 

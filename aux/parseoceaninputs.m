@@ -29,7 +29,8 @@
 %   buf - The buffer from the coastlines in degrees
 %   moreBufs - Additional buffers to apply to the coastlines
 %   lonOrigin - The longitude origin of the data
-%   rotateBack - Whether to rotate the data back to the original orientation
+%   rotateBack - Whether to rotate the data back to the original 
+%       orientation
 %   forceNew - Force the function to reload the data
 %   beQuiet - Suppress the output messages
 %       - 0: Show all messages
@@ -108,7 +109,7 @@ function varargout = parseoceaninputs(Inputs, varargin)
         moreBufs = moreBufsD;
     end
 
-    lonOrigin = p.Results.LonOrigin;
+    lonOrigin = conddefval(p.Results.LonOrigin, lonOriginD);
     rotateBack = logical(p.Results.RotateBack);
 
     if islogical(p.Results.ForceNew) || isnumeric(p.Results.ForceNew)

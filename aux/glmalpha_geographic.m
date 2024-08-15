@@ -136,7 +136,7 @@ function [G, V, N] = glmalpha_geographic( ...
     end
 
     % Now do the rotation
-    if isscalar(rotateBack) && rotateBack
+    if rotateBack && isscalar(rotateBack)
         % Get the rotation parameters to rotate G. Note, the region
         % rotation angles that we return from the functions (lonc, latc)
         % are the same regardless of if we did a buffer, as they pertain

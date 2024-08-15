@@ -62,6 +62,7 @@
 %       - 0: Get exactly the region that you specify.
 %       - 1: Get the opposite of the region you specify.
 %       The default value is 0.
+%   rotateBack - Whether to rotate the eigenfunctions back to the pole
 %   There are a few more cosmetic options
 %   ForceNew - Force the function to recomputed the data
 %   SaveData - Save the data to a file
@@ -109,7 +110,7 @@
 %   back...
 %
 % Last modified by
-%   2024/08/13, williameclee@arizona.edu (@williameclee)
+%   2024/08/15, williameclee@arizona.edu (@williameclee)
 %   2017/12/01, fjsimons@alum.mit.edu (@fjsimons)
 %   2016/06/27, charig@princeton.edu (@harig00)
 %   2016/10/11, plattner@alumni.ethz.ch (@AlainPlattner)
@@ -121,7 +122,8 @@ function varargout = glmalpha_new(varargin)
     addpath(fullfile(fileparts(mfilename('fullpath')), 'demos'));
 
     % demos
-    if ischar(varargin{1}) || isstring(varargin{1})
+    if (ischar(varargin{1}) || isstring(varargin{1})) && ...
+            contains(varargin{1}, 'demo')
 
         switch varargin{1}
             case 'demo1'
@@ -172,7 +174,7 @@ function varargout = glmalpha_new(varargin)
             fprintf('%s generating eigenvalue-weighted map, this make take a while...\n', upper(mfilename))
         end
 
-        plotvweightmap(G, V, domain, rotb)
+        plotvweightmap(G, V, domain)
 
         return
 
@@ -184,8 +186,9 @@ function varargout = glmalpha_new(varargin)
 
     % For geographical or lonlat regions
     if ismatrix(domain) || isa(domain, 'GeoDomain')
+        upscale = sord;
         [G, V, N] = glmalpha_geographic( ...
-            maxL, domain, sord, anti, rotb, ldim, bp, EL, EM, xver, ...
+            maxL, domain, upscale, anti, rotb, ldim, bp, EL, EM, xver, ...
             beQuiet, forceNew, mesg);
 
         G = G(:, 1:truncation);
@@ -228,7 +231,7 @@ function varargout = glmalpha_new(varargin)
         fprintf('%s generating eigenvalue-weighted map, this make take a while...\n', upper(mfilename))
     end
 
-    plotvweightmap(G, V, domain, rotb)
+    plotvweightmap(G, V, domain)
 end
 
 %% Subfunctions
@@ -392,13 +395,13 @@ function [lp, bp, maxL, ldim] = ldimension(L)
 
 end
 
-function plotvweightmap(G, V, domain, rotb)
+function plotvweightmap(G, V, domain)
     [mesh, lon, lat] = eigwmesh(G, V, 2);
     mesh = mesh / max(mesh(:));
     figName = 'Eigenvalue-weighted map of the Slepian functions';
 
     if isa(domain, 'GeoDomain')
-        lonlatd = domain.Lonlat('RotateBack', rotb);
+        lonlatd = domain.Lonlat('RotateBack', true);
     elseif ismatrix(domain)
         lonlatd = domain;
     end

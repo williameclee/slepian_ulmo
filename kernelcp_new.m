@@ -75,7 +75,7 @@
 %   PLOTSLEP, PLM2AVG, KERNELC, LEGENDREPRODINT, DLMLMP
 %
 % Last modified by
-%   2024/08/13, williameclee@arizona.edu (@williameclee)
+%   2024/08/15, williameclee@arizona.edu (@williameclee)
 %   2023/11/11, fjsimons@alum.mit.edu (@fjsimons)
 %   2017/05/26, plattner@alumni.ethz.ch (@AlainPlattner)
 %   2016/09/23, charig@princeton.edu (@harig00)
@@ -85,7 +85,8 @@ function varargout = kernelcp_new(varargin)
     addpath(fullfile(fileparts(mfilename('fullpath')), 'aux'));
     addpath(fullfile(fileparts(mfilename('fullpath')), 'demos'));
     % Demos
-    if ischar(varargin{1}) || isstring(varargin{1})
+    if ischar(varargin{1}) || isstring(varargin{1}) && ...
+            contains(varargin{1}, 'demo')
 
         switch varargin{1}
             case 'demo1'
@@ -190,7 +191,13 @@ function varargout = kernelcp_new(varargin)
             end
 
         else
-            XY = domain.Lonlat;
+
+            try
+                XY = domain.Lonlat;
+            catch
+                XY = feval(domain.Domain, domain.Upscale, domain.Buffer);
+            end
+
         end
 
         thN = deg2rad(90 - max(XY(:, 2)));

@@ -1,3 +1,9 @@
+%% EIGWMESH_DEMO
+% This is a demo for EIGWMESH.
+%
+% Last modified by
+%   2024/08/15, williameclee@arizona.edu (@williameclee)
+
 function eigwmesh_demo(varargin)
     %% Generating data
     domain = GeoDomain('oceans');
@@ -8,13 +14,13 @@ function eigwmesh_demo(varargin)
     mesh = mesh / max(mesh(:));
 
     %% Plotting
+    figName = 'Eigenvalue-weighted map of Slepian functions'' power';
+
     if nargin > 0
         funName = varargin{1};
         figName = ...
-            sprintf('eigenvalue-weighted map of Slepian functions'' power (%s)', ...
-            upper(funName));
+            sprintf('%s (%s)', figName, upper(funName));
     else
-        figName = 'eigenvalue-weighted map of Slepian functions'' power';
     end
 
     cLim = [0, 1];
