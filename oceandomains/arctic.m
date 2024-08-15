@@ -84,9 +84,10 @@ function varargout = arctic(varargin)
     %% Initialisation
     % Suppress warnings
     warning('off', 'MATLAB:polyshape:repairedBySimplify');
+
     % First check: rotation
     if nargin == 1 && strcmpi(varargin{1}, 'rotated')
-        varargout = {1};
+        varargout = {true};
         return
     end
 

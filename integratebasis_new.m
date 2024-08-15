@@ -3,8 +3,9 @@
 % The integrals reported are in fractional sphere area. You may want to
 % convert this to real sphere area via x(4*pi*R^2).
 %
-% eigfunINT = INTEGRATEBASIS(eigfun, domain, J)
-% eigfunINT = INTEGRATEBASIS(eigfun, r, J, phi, theta)
+% Syntax
+%   eigfunINT = INTEGRATEBASIS(eigfun, domain, J)
+%   eigfunINT = INTEGRATEBASIS(eigfun, r, J, phi, theta)
 %
 % Input arguments
 %   eigfun - The eigenfunctions
@@ -30,7 +31,7 @@
 %
 % Last modified by
 %   2024/08/15, williameclee@arizona.edu (@williameclee)
-%   2016/11/01, charig@email.arizona.edu (@charig00)
+%   2016/11/01, charig@email.arizona.edu (@harig00)
 
 function varargout = integratebasis_new(varargin)
     [eigfun, domain, J, phi, theta, forceNew, saveData, beQuiet] = ...

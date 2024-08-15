@@ -13,12 +13,20 @@ for iDom = 1:length(domainNames)
             buf = bufs(iBuf);
             domain = GeoDomain(domainName, "Buffer", buf, "Inclination", inc);
 
-            [G, V] = glmalpha_new(domain, L);
+            G0 = glmalpha(domain.Lonlat, L);
 
-            I0 = integratebasis(G, domain.Lonlat);
-            I = integratebasis_new(G, domain, "ForceNew", true);
+            G = glmalpha_new(domain, L, ...
+                "ForceNew", true, "SaveData", false);
 
-            assert(isequal(I0, I))
+            try
+                assert(isequal(G0, G))
+            catch
+				disp(domainName)
+				disp(inc)
+				disp(buf)
+                assert(isequal(G0, G))
+            end
+
         end
 
     end

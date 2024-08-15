@@ -244,7 +244,7 @@ function varargout = parseinputs(Inputs)
     rescD = 0;
     JD = [];
     antiD = false;
-    rotateBackD = false;
+    rotateBackD = true;
 
     p = inputParser;
     addOptional(p, 'Domain', domainD, ...

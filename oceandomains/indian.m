@@ -76,6 +76,12 @@ function varargout = indian(varargin)
     % Suppress warnings
     warning('off', 'MATLAB:polyshape:repairedBySimplify');
 
+    % First check: rotation
+    if nargin == 1 && strcmpi(varargin{1}, 'rotated')
+        varargout = {false};
+        return
+    end
+
     % Parse the inputs
     lonOriginD = 180;
     [upscale, latlim, buf, moreBufs, lonOrigin, ~, ...

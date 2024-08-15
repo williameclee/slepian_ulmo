@@ -27,10 +27,10 @@ function h = plotqdm(varargin)
     [lon, lat, Inputs] = parselonlatinputs(varargin{:});
 
     lon = lon - floor(min(lon) / 360) * 360;
-    xLim = [min(lon), max(lon)] + [-5, 5];
 
-    if xLim(2) - xLim(1) == 370
-        xLim = [0, 360];
+    xLim = [min(lon), max(lon)];
+    if max(lon) - min(lon) ~= 360
+        xLim = xLim + [-5, 5];
     end
 
     yLim = [min(lat), max(lat)] + [-5, 5];

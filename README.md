@@ -46,7 +46,9 @@ A new class is introduced as an interface to geographic domains:
 The following functions have also been modified (mainly to support `GeoDomain`), and can probably safely replace the original functions:
 
 - `glmalpha` (from slepian_alpha) → `glmalpha_new`
-- `integratebasis` (from slepian_delta) → `integratebasis_new` (not tested yet)
+- `grace2plmt` (from slepian_delta)
+- `grace2slept` (from slepian_delta) -> `grace2slept_new`
+- `integratebasis` (from slepian_delta) → `integratebasis_new` (not fully tested yet)
 - `kernelcp` (from slepian_alpha) → `kernelcp_new`
 - `plm2slep` (from slepian_bravo) → `plm2slep_new`
 - `plm2xyz` (from slepian_alpha)
@@ -66,8 +68,9 @@ Other supporting functions for visualisation include:
 
 ### Other supporting functions
 
+- `gia2plmt`: Converts GIA data to SH time series.
 - `slep2xyz`: Converts Slepian functions to a mesh on a sphere.
 
 ---
 Last modified by:
-- [En-Chi Lee (@williameclee)](https://github.com/williameclee), 2024/08/14
+- [En-Chi Lee (@williameclee)](https://github.com/williameclee), 2024/08/15

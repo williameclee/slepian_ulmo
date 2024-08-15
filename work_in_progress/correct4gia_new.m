@@ -79,7 +79,7 @@
 %
 %   Geruo, A., Wahr, J. & Zhong, S. Computations of the viscoelastic response of a
 %    3-D compressible Earth to surface loading: An application to Glacial Isostatic
-%    Adjustment in Antarctica and Canada. Geophys. J. Int. 192, 557572 (2013).
+%    Adjustment in Antarctica and Canada. Geophys. J. Int. 192, 557-572 (2013).
 %
 %   Ivins, E. R., T. S. James, J. Wahr, E. J. O. Schrama, F. W. Landerer,
 %   and K. M. Simon. Antarctic contribution to sea level rise observed by
@@ -107,88 +107,40 @@
 
 function varargout = correct4gia_new(varargin)
     %% Initialisation
-    timeDefault = datenum(2004, 1:12, 1); %#ok<DATNM>
-    modelDefault = 'W12a_v1';
-    domainDefault = {'greenland', 0.5};
-    LDefault = 60;
-    phiDefault = 0;
-    thetaDefault = 0;
-    omegaDefault = 0;
-    p = inputParser;
-    addOptional(p, 'Time', timeDefault, ...
-        @(x) isnumeric(x) || isdatetime(x) || isempty(x));
-    addOptional(p, 'Model', modelDefault, ...
-        @(x) ischar(x) || isempty(x));
-    addOptional(p, 'Domain', domainDefault, ...
-        @(x) isnumeric(x) || iscell(x) || ischar(x));
-    addOptional(p, 'L', LDefault, ...
-        @(x) isnumeric(x) || isempty(x));
-    addOptional(p, 'phi', phiDefault, ...
-        @(x) isnumeric(x) || isempty(x));
-    addOptional(p, 'theta', thetaDefault, ...
-        @(x) isnumeric(x) || isempty(x));
-    addOptional(p, 'omega', omegaDefault, ...
-        @(x) isnumeric(x) || isempty(x));
-    addOptional(p, 'MoreDomainSpecs', {}, @iscell);
-    addParameter(p, 'BeQuiet', false, @islogical);
-
-    parse(p, varargin{:});
-    time = conddefval(p.Results.Time, timeDefault);
-    model = conddefval(p.Results.Model, modelDefault);
-    domain = conddefval(p.Results.Domain, domainDefault);
-    L = conddefval(p.Results.L, LDefault);
-    phi = conddefval(p.Results.phi, phiDefault);
-    theta = conddefval(p.Results.theta, thetaDefault);
-    omega = conddefval(p.Results.omega, omegaDefault);
-    moreDomainSpecs = p.Results.MoreDomainSpecs;
-    beQuiet = p.Results.BeQuiet;
-
-    if iscell(domain) && length(domain) > 2
-        moreDomainSpecs = {domain{3:end}, moreDomainSpecs{:}}; %#ok<CCAT>
-        % TH = TH(1:2);
-    end
-
-    if isdatetime(time)
-        time = datenum(time); %#ok<DATNM>
-    end
-
-    xver = 0;
+    % Parse inputs
+    [time, model, domain, L, phi, theta, omega, ~, beQuiet] = parseinputs(varargin{:});
 
     % Where the model save files are kept
     if strncmp(model, 'Morrow', 6)
-        defval('ddir1', fullfile(getenv('IFILES'), 'GIA', model(1:6)));
+        inputFolder = fullfile(getenv('IFILES'), 'GIA', model(1:6));
     else
-        defval('ddir1', fullfile(getenv('IFILES'), 'GIA', model));
+        inputFolder = fullfile(getenv('IFILES'), 'GIA', model);
     end
 
     % And the appropriate name
-    fnpl = sprintf('%s/%s_SD.mat', ddir1, model);
+    inputPath = fullfile(inputFolder, sprintf('%s_SD.mat', model));
 
     % Load this data (saved as lmcosiM)
-    load(fnpl, 'lmcosiM', 'lmcosiU', 'lmcosiL');
+    load(inputPath, 'lmcosiM', 'lmcosiU', 'lmcosiL');
 
     %% Main
     % Convert the model from change per year to change per day
-    lmcosiM = [lmcosiM(:, 1:2), lmcosiM(:, 3:4) / 365];
+    lmcosiM(:, 3:4) = lmcosiM(:, 3:4) / 365;
 
     if exist('lmcosiU', 'var') && exist('lmcosiL', 'var')
-        lmcosiU = [lmcosiU(:, 1:2), lmcosiU(:, 3:4) / 365];
-        lmcosiL = [lmcosiL(:, 1:2), lmcosiL(:, 3:4) / 365];
+        lmcosiU(:, 3:4) = lmcosiU(:, 3:4) / 365;
+        lmcosiL(:, 3:4) = lmcosiL(:, 3:4) / 365;
     end
 
     % Reference the date string to the first date
     if ~isscalar(time)
-        newdates = time - time(1);
+        deltatime = time - time(1);
     else
-        newdates = 365;
+        deltatime = 365;
     end
 
     % If we have a Slepian basis, do that, if not just do plms
     if exist('domain', 'var')
-
-        if ~exist('L', 'var')
-            error('Please specify a basis bandwidth');
-        end
 
         % Figure out if it's lowpass or bandpass
         % lp = length(L) == 1;
@@ -200,45 +152,39 @@ function varargout = correct4gia_new(varargin)
         % Project the model
         [~, ~, ~, lmcosiW, ~, ~, ~, ~, ~, ronm] = addmon(maxL);
 
-        if isnumeric(domain)
-            [falpha, ~, N, ~, G] = plm2slep_new(lmcosiM, domain, L, phi, theta, omega, "BeQuiet", beQuiet);
-        elseif iscell(domain) && length(domain) >= 3
+        if isa(domain, 'GeoDomain') || ismatrix(domain)
             [falpha, ~, N, ~, G] = plm2slep_new(lmcosiM, domain, L, "BeQuiet", beQuiet);
         else
-            [falpha, ~, N, ~, G] = plm2slep_new(lmcosiM, domain, L, "MoreRegionSpecs", moreDomainSpecs, "BeQuiet", beQuiet);
+            [falpha, ~, N, ~, G] = plm2slep_new(lmcosiM, domain, L, phi, theta, omega, "BeQuiet", beQuiet);
         end
 
+        % if isnumeric(domain)
+        %     [falpha, ~, N, ~, G] = plm2slep_new(lmcosiM, domain, L, phi, theta, omega, "BeQuiet", beQuiet);
+        % elseif iscell(domain) && length(domain) >= 3
+        %     [falpha, ~, N, ~, G] = plm2slep_new(lmcosiM, domain, L, "BeQuiet", beQuiet);
+        % else
+        %     [falpha, ~, N, ~, G] = plm2slep_new(lmcosiM, domain, L, "MoreRegionSpecs", moreDomainSpecs, "BeQuiet", beQuiet);
+        % end
+
         if exist('lmcosiU', 'var') && exist('lmcosiL', 'var')
-            [falphaU] = plm2slep_new(lmcosiU, domain, L);
-            [falphaL] = plm2slep_new(lmcosiL, domain, L);
+            falphaU = plm2slep_new(lmcosiU, domain, L, "BeQuiet", beQuiet);
+            falphaL = plm2slep_new(lmcosiL, domain, L, "BeQuiet", beQuiet);
         end
 
         % Scale to the new dates
-        for i = 1:length(newdates)
-            GIAt(i, :) = falpha * newdates(i);
+        GIAt = zeros([length(deltatime), length(falpha)]);
+
+        if exist('lmcosiU', 'var') && exist('lmcosiL', 'var')
+            GIAtU = zeros([length(deltatime), length(falphaU)]);
+            GIAtL = zeros([length(deltatime), length(falphaL)]);
+        end
+
+        for i = 1:length(deltatime)
+            GIAt(i, :) = falpha * deltatime(i);
 
             if exist('lmcosiU', 'var') && exist('lmcosiL', 'var')
-                GIAtU(i, :) = falphaU * newdates(i);
-                GIAtL(i, :) = falphaL * newdates(i);
-            end
-
-            if xver && i == 12
-                % Collect the eigenvector output into a format that PLM2XYZ knows how to interpret
-                for j = 1:round(N) %#ok<UNRCH>
-                    % Create the blanks
-                    cosi = lmcosiW(:, 3:4);
-                    % Stick in the coefficients of the 1st eigentaper
-                    cosi(ronm) = G(:, j);
-                    % Construct the full matrix
-                    if j == 1
-                        CC = [lmcosiW(:, 1:2) cosi * falpha(j) * 365/10];
-                    else
-                        CC(:, 3:4) = CC(:, 3:4) + cosi * falpha(j) * 365/10;
-                    end
-
-                end
-
-                plotplm(CC, [], [], 4, 1)
+                GIAtU(i, :) = falphaU * deltatime(i);
+                GIAtL(i, :) = falphaL * deltatime(i);
             end
 
         end
@@ -254,10 +200,10 @@ function varargout = correct4gia_new(varargin)
             CC{j} = [lmcosiW(:, 1:2), cosi];
         end
 
-        if iscell(domain) && length(domain) <= 2
-            eigfunINT = integratebasis_new(CC, domain, round(N), "MoreRegionSpecs", moreDomainSpecs);
-        else
+        if isa(domain, 'GeoDomain') || ismatrix(domain)
             eigfunINT = integratebasis_new(CC, domain, round(N));
+        else
+            eigfunINT = integratebasis_new(CC, domain, round(N), phi, theta);
         end
 
         % Since Int should have units of (fn * m^2), need to go from fractional
@@ -274,24 +220,27 @@ function varargout = correct4gia_new(varargin)
         total = eigfunINT(1:round(N)) .* (falpha(1:round(N)) * 365); % Back to per year
 
     else % Just do the plms
+        GIAt = zeros([length(deltatime), size(lmcosiM)]);
 
-        for i = 1:length(newdates)
-            GIAt(i, :, :) = [lmcosiM(:, 1:2) lmcosiM(:, 3:4) * newdates(i)];
+        if exist('lmcosiU', 'var') && exist('lmcosiL', 'var')
+            GIAtU = zeros([length(deltatime), size(lmcosiU)]);
+            GIAtL = zeros([length(deltatime), size(lmcosiL)]);
+        end
+
+        for i = 1:length(deltatime)
+            GIAt(i, :, 3:4) = lmcosiM(:, 3:4) * deltatime(i);
 
             if exist('lmcosiU', 'var') && exist('lmcosiL', 'var')
-                GIAtU(i, :, :) = [lmcosiU(:, 1:2) lmcosiU(:, 3:4) * newdates(i)];
-                GIAtL(i, :, :) = [lmcosiL(:, 1:2) lmcosiL(:, 3:4) * newdates(i)];
-            end
-
-            if xver && i == 2
-                plotplm(squeeze(lmcosiGIA(i, :, :)), [], [], 4, 1) %#ok<USENS,UNRCH>
-                pause
+                GIAtU(i, :, 1:2) = lmcosiU(:, 1:2);
+                GIAtU(i, :, 3:4) = lmcosiU(:, 3:4) * deltatime(i);
+                GIAtL(i, :, 1:2) = lmcosiL(:, 1:2);
+                GIAtL(i, :, 3:4) = lmcosiL(:, 3:4) * deltatime(i);
             end
 
         end
 
         total = 0;
-    end % end if exist
+    end
 
     if size(GIAt, 1) == 1
         GIAt = squeeze(GIAt);
@@ -303,5 +252,61 @@ function varargout = correct4gia_new(varargin)
     else
         varargout = {GIAt, time, [], [], total};
     end
+
+end
+
+%% Subfunctions
+function varargout = parseinputs(varargin)
+    timeD = datenum(2004, 1:12, 1); %#ok<DATNM>
+    modelD = 'Paulson07';
+    domainD = {'greenland', 0.5};
+    LD = 60;
+    phiD = 0;
+    thetaD = 0;
+    omegaD = 0;
+    p = inputParser;
+    addOptional(p, 'Time', timeD, ...
+        @(x) isnumeric(x) || isdatetime(x) || isempty(x));
+    addOptional(p, 'Model', modelD, ...
+        @(x) ischar(x) || isempty(x));
+    addOptional(p, 'Domain', domainD, ...
+        @(x) isnumeric(x) || iscell(x) || ischar(x) || isa(x, 'GeoDomain') || isempty(x));
+    addOptional(p, 'L', LD, ...
+        @(x) isnumeric(x) || isempty(x));
+    addOptional(p, 'phi', phiD, ...
+        @(x) isnumeric(x) || isempty(x));
+    addOptional(p, 'theta', thetaD, ...
+        @(x) isnumeric(x) || isempty(x));
+    addOptional(p, 'omega', omegaD, ...
+        @(x) isnumeric(x) || isempty(x));
+    addOptional(p, 'MoreDomainSpecs', {}, @iscell);
+    addParameter(p, 'BeQuiet', false, @islogical);
+
+    parse(p, varargin{:});
+    time = conddefval(p.Results.Time, timeD);
+    model = conddefval(p.Results.Model, modelD);
+    domain = conddefval(p.Results.Domain, domainD);
+    L = conddefval(p.Results.L, LD);
+    phi = conddefval(p.Results.phi, phiD);
+    theta = conddefval(p.Results.theta, thetaD);
+    omega = conddefval(p.Results.omega, omegaD);
+    moreDomainSpecs = p.Results.MoreDomainSpecs;
+    beQuiet = p.Results.BeQuiet;
+
+    % Change the domain to a GeoDomain object if appropriate
+    if ischar(domain) || isstring(domain) && exist(domain, "file")
+        domain = GeoDomain(domain, moreDomainSpecs{:});
+    elseif iscell(domain) && length(domain) == 2
+        domain = ...
+            GeoDomain(domain{1}, "Buffer", domain{2}, moreDomainSpecs{:});
+    elseif iscell(domain) && length(domain) >= 3
+        domain = GeoDomain(domain{:}, moreDomainSpecs{:});
+    end
+
+    if isdatetime(time)
+        time = datenum(time); %#ok<DATNM>
+    end
+
+    varargout = {time, model, domain, L, phi, theta, omega, moreDomainSpecs, beQuiet};
 
 end

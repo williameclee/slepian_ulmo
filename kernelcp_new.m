@@ -506,7 +506,7 @@ function varargout = parseinputs(Inputs)
         @(x) isnumeric(x) || islogical(x) || isempty(x));
     addParameter(p, 'ForceNew', false, ...
         @(x) islogical(x));
-    addParameter(p, 'Save', true, ...
+    addParameter(p, 'SaveData', true, ...
         @(x) islogical(x));
     addParameter(p, 'BeQuiet', false, ...
         @(x) islogical(x));
@@ -518,7 +518,7 @@ function varargout = parseinputs(Inputs)
     ngl = conddefval(p.Results.ngl, nglD);
     rotb = logical(conddefval(p.Results.rotb, rotbD));
     forceNew = logical(p.Results.ForceNew);
-    saveData = logical(p.Results.Save);
+    saveData = logical(p.Results.SaveData);
     beQuiet = logical(p.Results.BeQuiet);
 
     % Change the domain to a GeoDomain object if appropriate

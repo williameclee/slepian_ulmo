@@ -9,7 +9,7 @@
 % Syntax
 %   loadcbar(levels)
 %   loadcbar(limits, h)
-%   loadcbar(__, 'Title', title, 'CmapName', name)
+%   loadcbar(__, 'Title', title, 'Colormap', name)
 %   loadcbar(__, 'FSettings', FigureSettings)
 %   [cbar, levels] = loadcbar(__)
 %
@@ -40,7 +40,7 @@
 %   >>  FSettings.Fname = 'Arial';
 %   >>  FSettings.FsizeCaption = 12;
 %   >>  [cLevels, cbar] = loadcbar(cLim, cStep, ...
-%       'Title', cbarLabel, 'CmapName', cmapName, FSettings)
+%       'Title', cbarLabel, 'Colormap', cmapName, FSettings)
 %
 % Last modified by
 %   2021/08/13, williameclee@arizona.edu (@williameclee)

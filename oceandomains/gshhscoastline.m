@@ -40,7 +40,7 @@ function varargout = gshhscoastline(varargin)
     end
 
     if ~exist('gshhsCoastXY', 'var')
-        gshhsCoastXY = closecoastline(gshhsCoastPoly.Vertices);
+        gshhsCoastXY = poly2xy(gshhsCoastPoly);
     end
 
     % Save the data if requested
@@ -79,20 +79,18 @@ function varargout = gshhscoastline(varargin)
     gshhsCoastXY = closecoastline(gshhsCoastPoly.Vertices);
 
     %% Returning requested data
+    varargout = {gshhsCoastXY, gshhsCoastPoly, GshhsCoasts};
+
     if nargout > 0
-        varargout = {gshhsCoastXY, gshhsCoastPoly, GshhsCoasts};
-    else
-        figure(10)
-        clf
-
-        plot(gshhsCoastXY(:, 1), gshhsCoastXY(:, 2), ...
-        'k.-')
-
-        axis equal
-        axis tight
-        grid on
-        box on
+        return
     end
+
+    figure(10)
+    set(gcf, "Name", sprintf('Coastline (%s)', upper(mfilename)), ...
+        "NumberTitle", "off")
+    clf
+
+    plotqdm(gshhsCoastXY, 'k.-')
 
 end
 
@@ -111,10 +109,9 @@ function varargout = parseinputs(inputArguments)
     addOptional(p, 'Buffer', 0, @isnumeric);
     addOptional(p, 'Tolerence', 0.2, @isnumeric);
     addParameter(p, 'LonOrigin', 0, @isnumeric);
-    addParameter(p, 'ForceNew', false, @islogical);
+    addParameter(p, 'ForceNew', false, @(x) islogical(x) || isnumeric(x));
     addParameter(p, 'SaveData', true, @(x) islogical(x) || isnumeric(x));
-    addParameter(p, 'BeQuiet', false, ...
-        @(x) islogical(x) || isnumeric(x));
+    addParameter(p, 'BeQuiet', false, @(x) islogical(x) || isnumeric(x));
     parse(p, inputArguments{:});
 
     %% Assigning the inputs
@@ -126,8 +123,8 @@ function varargout = parseinputs(inputArguments)
     buf = p.Results.Buffer;
     tol = p.Results.Tolerence;
     lonOrigin = p.Results.LonOrigin;
-    forcenew = p.Results.ForceNew;
-    saveData = p.Results.SaveData;
+    forcenew = logical(p.Results.ForceNew);
+    saveData = logical(p.Results.SaveData);
     beQuiet = logical(p.Results.BeQuiet);
 
     %% Additional parameters
@@ -144,19 +141,16 @@ function varargout = parseinputs(inputArguments)
          forcenew, saveData, beQuiet};
 end
 
-function gshhsCoastPoly = ...
-        croptolims(gshhsCoastPoly, latlim, lonlim, lonOrigin)
-    %% Making sure the coastline is well defined
-    gshhsCoastXY = gshhsCoastPoly.Vertices;
-    gshhsCoastXY = closecoastline(gshhsCoastXY);
-    % Specify the longitude origin
-    [gshhsCoastY, gshhsCoastX] = ...
-        flatearthpoly(gshhsCoastXY(:, 2), gshhsCoastXY(:, 1), lonOrigin);
-    gshhsCoastPoly = polyshape(gshhsCoastX, gshhsCoastY);
-
-    %% Cropping the data to the desired limits
-    boundingBox = polyshape( ...
+function p = croptolims(p, latlim, lonlim, lonOrigin)
+    %% Cropping
+    bbox = polyshape( ...
         [lonlim(1), lonlim(2), lonlim(2), lonlim(1), lonlim(1)], ...
         [latlim(1), latlim(1), latlim(2), latlim(2), latlim(1)]);
-    gshhsCoastPoly = intersect(gshhsCoastPoly, boundingBox);
+    p = intersect(p, bbox);
+
+    %% Shifting
+    XY = poly2xy(p);
+    [X, Y] = ...
+        flatearthpoly(XY(:, 2), XY(:, 1), lonOrigin);
+    p = polyshape([Y, X]);
 end
