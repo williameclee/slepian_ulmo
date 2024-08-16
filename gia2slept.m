@@ -140,7 +140,7 @@ function varargout = gia2slept(varargin)
     end
 
     eigfunINT = eigfunINT * (4 * pi * 6370e3 ^ 2) / 1e12;
-    total = eigfunINT(1:truncation) .* (falpha(1:truncation));
+    total = slept(:, 1:truncation) * eigfunINT';
 
     %% Collecting outputs and plotting
     if ~hasBounds
