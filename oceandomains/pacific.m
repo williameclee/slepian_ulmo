@@ -145,6 +145,12 @@ function varargout = pacific(varargin)
         return
     end
 
+    save(dataFile, 'XY', 'p', '-v7.3')
+
+    if beQuiet < 2
+        fprintf('%s saved %s\n', upper(mfilename), dataFile)
+    end
+
 end
 
 %% Subfunctions

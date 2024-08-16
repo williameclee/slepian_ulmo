@@ -35,7 +35,8 @@ function varargout = gshhscoastline(varargin)
         end
 
         segmentsToInclude = 1:length(GshhsCoasts);
-        segmentsToInclude = segmentsToInclude(all(segmentsToInclude ~= [57, 77, 78]'));
+        segmentsToInclude = ...
+            segmentsToInclude(all(segmentsToInclude ~= [57, 77, 78]'));
         gshhsCoastPoly = union([GshhsCoasts(segmentsToInclude).Polygon]);
     end
 
@@ -102,13 +103,13 @@ function varargout = parseinputs(inputArguments)
         @(x) ischar(x) && ismember(x, 'cfhil'));
     addOptional(p, 'LatLim', [-90, 90], ...
         @(x) isnumeric(x) && length(x) == 2);
-    addOptional(p, 'LonLim', [-180, 180], ...
+    addOptional(p, 'LonLim', [0, 360], ...
         @(x) isnumeric(x) && length(x) == 2);
     addOptional(p, 'MinLandArea', 30, @isnumeric);
     addOptional(p, 'Upscale', 0, @isnumeric);
     addOptional(p, 'Buffer', 0, @isnumeric);
     addOptional(p, 'Tolerence', 0.2, @isnumeric);
-    addParameter(p, 'LonOrigin', 0, @isnumeric);
+    addParameter(p, 'LonOrigin', 180, @isnumeric);
     addParameter(p, 'ForceNew', false, @(x) islogical(x) || isnumeric(x));
     addParameter(p, 'SaveData', true, @(x) islogical(x) || isnumeric(x));
     addParameter(p, 'BeQuiet', false, @(x) islogical(x) || isnumeric(x));
@@ -142,15 +143,15 @@ function varargout = parseinputs(inputArguments)
 end
 
 function p = croptolims(p, latlim, lonlim, lonOrigin)
-    %% Cropping
-    bbox = polyshape( ...
-        [lonlim(1), lonlim(2), lonlim(2), lonlim(1), lonlim(1)], ...
-        [latlim(1), latlim(1), latlim(2), latlim(2), latlim(1)]);
-    p = intersect(p, bbox);
-
     %% Shifting
     XY = poly2xy(p);
     [X, Y] = ...
         flatearthpoly(XY(:, 2), XY(:, 1), lonOrigin);
     p = polyshape([Y, X]);
+
+    %% Cropping
+    bbox = polyshape( ...
+        [lonlim(1), lonlim(2), lonlim(2), lonlim(1), lonlim(1)], ...
+        [latlim(1), latlim(1), latlim(2), latlim(2), latlim(1)]);
+    p = intersect(p, bbox);
 end

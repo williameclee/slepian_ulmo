@@ -56,6 +56,8 @@ The following functions have also been modified (mainly to support `GeoDomain`),
 
 The ultimate goal is to drop the `_new` suffixes and replace the original functions with the modified ones. Note that these functions are only tested for geographic domains, and may not work as expected for, e.g. circular caps.
 
+Additionally, `correct4gia` (from slepian_delta) has been split into two functions: `gia2plmt` and `gia2slept`.
+
 ### Visualisations
 
 - `eigenwmesh`: Returns a mesh of the eigenvalue-weighted power map of the given Slepian functions.
@@ -68,9 +70,10 @@ Other supporting functions for visualisation include:
 
 ### Other supporting functions
 
-- `gia2plmt`: Converts GIA data to SH time series.
+- `gia2plmt`: Converts GIA data to SH coefficient time series.
+- `gia2slept`: Converts GIA data to Slepian coefficient time series.
 - `slep2xyz`: Converts Slepian functions to a mesh on a sphere.
 
 ---
 Last modified by:
-- [En-Chi Lee (@williameclee)](https://github.com/williameclee), 2024/08/15
+- [En-Chi Lee (@williameclee)](https://github.com/williameclee), 2024/08/16

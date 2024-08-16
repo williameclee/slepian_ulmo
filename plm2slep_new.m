@@ -188,7 +188,7 @@ function varargout = parseinputs(varargin)
     addOptional(p, 'Upscale', upscaleD, ...
         @(x) isnumeric(x) || isempty(x));
     addOptional(p, 'MoreDomainSpecs', {}, @iscell);
-    addParameter(p, 'BeQuiet', false, @islogical);
+    addParameter(p, 'BeQuiet', false, @(x) islogical(x) || isnumeric(x));
     parse(p, varargin{:});
 
     lmcosi = p.Results.lmcosi;
@@ -201,7 +201,7 @@ function varargout = parseinputs(varargin)
     J = conddefval(p.Results.J, JD);
     upscale = conddefval(p.Results.Upscale, upscaleD);
     moreRegionSpecs = p.Results.MoreDomainSpecs;
-    beQuiet = p.Results.BeQuiet;
+    beQuiet = logical(p.Results.BeQuiet);
 
     if ischar(domain) || isstring(domain) && exist(domain, "file")
         domain = GeoDomain(domain, "Upscale", upscale, moreRegionSpecs{:});

@@ -9,17 +9,17 @@
 % a projection with eigenvalues 0 and 1.
 %
 % Synatx
+%   [G, V, EL, EM, N] = glmalpha(r, L)
 %   [G, V, EL, EM, N] = glmalpha(domain, L)
 %   [G, V, EL, EM, N] = glmalpha(__, upscale)
 %   [G, V, EL, EM, N] = glmalpha(__, 'Name', value)
 %   [G, V, EL, EM, N, GM2AL, MTAP, IMTAP] = ...
-%       glmalpha(theta, L, numpoles, blox, upco, rescale, truncation, anti)
+%       glmalpha(r, L, numpoles, blox, upco, rescale, truncation, anti)
 %   glmalpha(demoId)
 %
 % Input arguments
+%   r - The angular extent of the spherical cap radius in degrees
 %   domain - The domain of interest
-%       - A scalar theta, denoting the angular extent of the spherical cap
-%           radius in degrees.
 %       - A string of the domain of interest. It must be a function that
 %           returns the coordinates of the domain.
 %       - A cell array of the domain of interest (string) and the buffer

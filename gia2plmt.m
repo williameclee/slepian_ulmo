@@ -4,11 +4,11 @@
 % Syntax
 %   Plmt = gia2plmt(model)
 %		Returns the GIA geoid change in one year.
-%   Plmt = gia2plmt(model, days)
+%   Plmt = gia2plmt(days, model)
 %		Returns the GIA geoid change in the given number of days.
-%   Plmt = gia2plmt(model, time)
+%   Plmt = gia2plmt(time, model)
 %		Returns the GIA geoid changes at the given times.
-%   Plmt = gia2plmt(model, time, L)
+%   Plmt = gia2plmt(time, model, L)
 %		Returns the GIA geoid changes truncated to degree L.
 %   Plmt = gia2plmt(__, 'Name', Value)
 %   [Plmt, PlmtU, PlmtL] = gia2plmt(__)
@@ -35,12 +35,15 @@
 %           Suitable for Antarctica.
 %       - 'W12a_v1': A 'best' model from Whitehouse et al. (2012). Suitable
 %           only for Antarctica.
+%       The input can also be the path to the model file.
 %		The default model is 'Steffen_ice6g_vm5a'.
 %   days - Number of days to calculate the GIA change for
 %   time - Vector of dates to calculate the GIA change for
 %		The input can be in DATENUM or DATETIME format.
 %   L - Maximum degree of the GIA model
 %		If empty, the model is not truncated.
+%   BeQuiet - Whether to surpress output messages
+%		The default option is false.
 %
 % Output arguments
 %   Plmt - GIA change in spherical harmonic format
@@ -99,11 +102,11 @@ function varargout = gia2plmt(varargin)
     %% Some additional processing
     % Truncate the model to the desired degree
     if ~isempty(L)
-        lmcosiM = lmcosiM(addmup(L), :);
+        lmcosiM = lmcosiM(1:addmup(L), :);
 
         if hasBounds
-            lmcosiU = lmcosiU(addmup(L), :);
-            lmcosiL = lmcosiL(addmup(L), :);
+            lmcosiU = lmcosiU(1:addmup(L), :);
+            lmcosiL = lmcosiL(1:addmup(L), :);
         end
 
     end
@@ -146,7 +149,7 @@ function varargout = gia2plmt(varargin)
         GIAtL = nan;
 
         if nargout > 1
-            warning( ...
+            warning('SLEPIAN:gia2plmt:noBoundsToReturn', ...
             'Upper and lower bounds are not available for this model');
         end
 
@@ -165,14 +168,22 @@ end
 %% Subfunctions
 function varargout = parseinputs(varargin)
     modelD = 'Steffen_ice6g_vm5a';
+
+    % Allow skipping the time argument
+    if nargin > 0 && ...
+            (ischar(varargin{1}) || isstring(varargin{1}) || iscell(varargin{1}))
+        varargin(2:end + 1) = varargin(1:end);
+        varargin(1) = [];
+    end
+
     p = inputParser;
-    addOptional(p, 'Model', modelD, ...
-        @(x) ischar(x) || (iscell(x) && length(x) == 3) || isempty(x));
     addOptional(p, 'Time', [], ...
         @(x) isnumeric(x) || isdatetime(x) || isempty(x));
+    addOptional(p, 'Model', modelD, ...
+        @(x) ischar(x) || (iscell(x) && length(x) == 3) || isempty(x));
     addOptional(p, 'L', [], ...
         @(x) isnumeric(x) || isempty(x));
-    addParameter(p, 'BeQuiet', false, @islogical);
+    addParameter(p, 'BeQuiet', false, @(x) islogical(x) || isnumeric(x));
 
     parse(p, varargin{:});
     time = p.Results.Time;
@@ -200,6 +211,39 @@ function varargout = parseinputs(varargin)
 
 end
 
+function inputPath = finddatafile(model)
+
+    if exist(model, 'file') == 2
+        inputPath = model;
+        return
+    end
+
+    if ~isempty(getenv('GIA'))
+        inputFolder = getenv('GIA');
+    elseif ~isempty(getenv('IFILES'))
+        inputFolder = fullfile(getenv('IFILES'), 'GIA');
+    else
+        error('GIA folder not found')
+    end
+
+    if strncmp(model, 'Morrow', 6)
+        inputFolder = fullfile(inputFolder, model(1:6));
+    elseif strncmp(model, 'Steffen', 7)
+        inputFolder = fullfile(inputFolder, 'SteffenGrids');
+    else
+        inputFolder = fullfile(inputFolder, model);
+    end
+
+    % And the appropriate name
+    inputPath = fullfile(inputFolder, sprintf('%s_SD.mat', model));
+
+    if exist(inputPath, 'file') ~= 2
+        error('Model %s not found\nIt should be kept at %s', ...
+            upper(model), inputPath);
+    end
+
+end
+
 function plmt = plm2plmt(plm, deltaYear)
     plmt = zeros([length(deltaYear), size(plm)]);
 
@@ -213,12 +257,17 @@ end
 
 function plotgiamap(GIAt, time, deltaYear, model)
     % Get the change rate
+    if isempty(deltaYear)
+        deltaYear = 1;
+    else
+        deltaYear = deltaYear(end);
+    end
+
     if isempty(time) || isscalar(time)
         GIAchange = GIAt;
-        GIAchange(:, 3:4) = GIAchange(:, 3:4) / deltaYear;
     else
         GIAchange = squeeze(GIAt(end, :, :) - GIAt(1, :, :));
-        GIAchange(:, 3:4) = GIAchange(:, 3:4) / deltaYear(end);
+        GIAchange(:, 1:2) = GIAt(1, :, 1:2);
     end
 
     [GIAmesh, lon, lat] = plm2xyz(GIAchange, "BeQuiet", true);
@@ -232,52 +281,18 @@ function plotgiamap(GIAt, time, deltaYear, model)
     figure(999)
     % Protect underscore in model name
     model = strrep(model, '_', '\_');
-    set(gcf, "Name", sprintf('GIA change (%s)', upper(mfilename)), ...
-        "NumberTitle", "off")
+    set(gcf, "NumberTitle", "off", "Name", ...
+        sprintf('GIA change in %.1f year(s) (%s)', deltaYear, upper(mfilename)))
     clf
 
     title(sprintf('Model: %s', model))
 
     [~, cLevels] = loadcbar(cLim, cStep, ...
-        "Title", 'GIA change [kg/m^2/yr]', ...
+        "Title", 'GIA change [kg/m^2]', ...
         "Colormap", 'temperature anomaly');
 
     hold on
     contourf(lon, lat, GIAmesh, cLevels, "LineStyle", 'none');
     plotqdm(coastLonlat, 'k');
     hold off
-end
-
-function inputPath = finddatafile(model)
-
-    if exist(model, 'file') == 2
-        inputFolder = fullfile(fileparts(mfilename('fullpath')), 'models');
-    else
-
-        if ~isempty(getenv('GIA'))
-            inputFolder = getenv('GIA');
-        elseif ~isempty(getenv('IFILES'))
-            inputFolder = fullfile(getenv('IFILES'), 'GIA');
-        else
-            error('GIA folder not found')
-        end
-
-        if strncmp(model, 'Morrow', 6)
-            inputFolder = fullfile(inputFolder, model(1:6));
-        elseif strncmp(model, 'Steffen', 7)
-            inputFolder = fullfile(inputFolder, 'SteffenGrids');
-        else
-            inputFolder = fullfile(inputFolder, model);
-        end
-
-    end
-
-    % And the appropriate name
-    inputPath = fullfile(inputFolder, sprintf('%s_SD.mat', model));
-
-    if exist(inputPath, 'file') ~= 2
-        error('Model %s not found\nIt should be kept at %s', ...
-            upper(model), inputPath);
-    end
-
 end

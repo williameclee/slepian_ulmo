@@ -50,7 +50,7 @@
 %   PTOSLEP, GLMALPHA, GLMALPHAPTO, PLM2SLEP, SLEP2XYZ, XYZ2SLEP
 %
 % Last modified by
-%   2024/08/13, williameclee@arizona.edu (@williameclee)
+%   2024/08/16, williameclee@arizona.edu (@williameclee)
 %   2023/10/21, fjsimons@alum.mit.edu (@fjsimons)
 
 function varargout = slep2plm_new(varargin)
@@ -78,7 +78,7 @@ function varargout = slep2plm_new(varargin)
     % Find the projection of the Slepian basis onto the spherical harmonics
     if phi == 0 && theta == 0 && omega == 0
         % A geographic domain or a latitude-longitude pair
-        [G, V, ~, ~, N, ~, MTAP] = glmalpha_new(domain, L);
+        [G, V, ~, ~, N, ~, MTAP] = glmalpha_new(domain, L, "BeQuiet", true);
     else
         % A polar cap
         % Need to get a complete GLMALPHA but for the rotated basis
@@ -123,6 +123,7 @@ function varargout = parseinputs(varargin)
     omegaD = 0;
 
     p = inputParser;
+    p.KeepUnmatched = true;
     addRequired(p, 'falpha', @isnumeric);
     addOptional(p, 'Domain', domainD, ...
         @(x) ischar(x) || iscell(x) || isa(x, "GeoDomain") || ...
