@@ -77,7 +77,7 @@ function varargout = gia2slept(varargin)
     % Get the yearly trend
     if strcmp(model, 'mascon')
         slept = mascon2slept('gia', domain, L, ...
-            [time(1), time(end)] + [-1, 1]);
+            [time(1), time(end)] + [-1, 1], "BeQuiet", beQuiet);
         [G, ~, ~, ~, N] = glmalpha_new(domain, L, "BeQuiet", beQuiet);
         hasBounds = false;
     else

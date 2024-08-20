@@ -8,96 +8,96 @@
 % F-test for variance reduction. For example, a cubic term is only used if
 % it is significantly better than a quadratic function.
 %
-% If you also provide the Slepian functions (CC) and region (domain) for 
-% this localisation, then we assume that you want the fitting to the 
-% integrated functions, i.e. if you have surface density, then using the 
-% integrated Slepian function would give you total mass change in a region. 
+% If you also provide the Slepian functions (CC) and region (domain) for
+% this localisation, then we assume that you want the fitting to the
+% integrated functions, i.e. if you have surface density, then using the
+% integrated Slepian function would give you total mass change in a region.
 % In addition, there will be a fitting of the combination (total) of the
 % Slepian functions up to the Shannon number for this localisation.
 %
 % Syntax
-%   [sleptSig, sleptRes, ftests] = slept2resid(slept, dates, fitwhat, ...
-%       error, specialterms, CC, domain)
-%   [__, extra, total, alphavarall, totalparams, totalparamerrors, ...
-%       totalfit, eigfunInt, alphavar] = slept2resid(__)
+%   [sleptSig, sleptRes, ftests] = slept2resif(slept, dates, fitwhat, givenerrors, ...
+%       specialterms, CC, domain)
+%   [__, extravalues, total, alphavarall, totalparams, totalparamerrors, totalfit, ...
+%   eigfunInt, alphavar] = slept2resi(__)
 %
 % Input arguments
-%   slept - The time series of Slepian coefficients
-%       This should be a two dimensional matrix (not a cell array), where 
-%       the first dimension is time, and the second dimension are Slepian 
+%   sleptCoeffs - The time series of Slepian coefficients
+%       This should be a two dimensional matrix (not a cell array), where
+%       the first dimension is time, and the second dimension are Slepian
 %       coefficients sorted by global eigenvalue.
 %   dates - An array of dates corresponding to the SLEPT timeseries
-%       It is assumed that DATES matches SLEPT. If DATES is longer than 
-%       SLEPT then it is assumed that these are extra dates that you would 
-%       like SLEPTSIG to be evaluated at. This is useful if you want to 
-%       interpolate to one of the GRACE missing months that is important, 
+%       It is assumed that DATES matches SLEPT. If DATES is longer than
+%       SLEPT then it is assumed that these are extra dates that you would
+%       like SLEPTSIG to be evaluated at. This is useful if you want to
+%       interpolate to one of the GRACE missing months that is important,
 %       such as Jan 2011.
 %       The input can be in DATENUM or DATETIME format.
-%   fitwhat - The functions that you would like to fit to the time series 
+%   fitwhat - The functions that you would like to fit to the time series
 %       data
 %       The format of this array is as follows:
 %       [P, T1, T2, T3, ...] where
 %       - P is either 0/1/2/3 to fit up to either a mean/linear/quadratic/
-%           cubic function (if increasing the power of the function reduces 
+%           cubic function (if increasing the power of the function reduces
 %           variance enough)
 %       - Tn is the period in days of a function (i.e. 365.0)
-%       Any # of desired periodic functions [days] (including zero) can be 
+%       Any # of desired periodic functions [days] (including zero) can be
 %       included.
 %   givenerrors - Given errors, if available
-%       In this case a weighted inversion is performed. It should be the 
+%       In this case a weighted inversion is performed. It should be the
 %       same dimensions of SLEPT.
 %   specialterms - A cell array such as {2, 'periodic', 1460}
-%       At the moment this is pretty specific to our needs, but could be 
+%       At the moment this is pretty specific to our needs, but could be
 %       expanded later.
 %   CC - The localisation Slepian functions
-%       This is can be the cell array obtained from GRACE2SLEPT, or the 
+%       This is can be the cell array obtained from GRACE2SLEPT, or the
 %       localisation matrix G from GLMALPHA.
 %   domain - The region of interest
 %   J - Number of largest eigenfunctions in which to expand
 %       The default value is the rounded Shannon number.
 %
 % Output arguments
-%   sleptSig - The least-squares fitted function for each Slepian 
+%   sleptSig - The least-squares fitted function for each Slepian
 %       coefficient evaluated at those months in the same format
 %   sleptRes - Residual time series for each Slepian coefficients
-%       They are ordered as they were given, presumably by eigenvalue 
+%       They are ordered as they were given, presumably by eigenvalue
 %       [nmonths x (Lwindow+1)^2]
-%   ftests - A matrix, such as [0 1 1] for each Slepian coefficient, on 
+%   ftests - A matrix, such as [0 1 1] for each Slepian coefficient, on
 %       whether the fits you requested passed an F-test for significance.
-%   extra - These are the values of SLEPTSIG evaluated at your extra dates 
-%       which were tacked onto DATES
-%   total - The time series of the combined mass change from J Slepian 
+%   extravalues - These are the values of SLEPTSIG evaluated at your extra
+%       dates which were tacked onto DATES
+%   total - The time series of the combined mass change from J Slepian
 %       functions (i.e. the combined data points)
 %       The unit is gigaton (Gt, 10^12 kg).
-%   alphavarall - The time averaged variance on each data point (from error 
+%   alphavarall - The time averaged variance on each data point (from error
 %       propogation from each individual function)
 %       These values are the same for every point.
 %   totalparams - The parameters of the fits to the total
-%       This is a 4-by-j matrix where j are the fits you wanted. Zeros fill 
-%       out the unused parameters. For example, if you want just a 2nd 
-%       order polynomial, you will get 
+%       This is a 4-by-j matrix where j are the fits you wanted. Zeros fill
+%       out the unused parameters. For example, if you want just a 2nd
+%       order polynomial, you will get
 %       [intercept intercept; slope slope; 0 quadratic; 0 0]
 %       The unit is Gt/day^p.
 %   totalparamerrors - The 95% confidence value on this slope
 %       This is computed using the critical value for a t-distribution.
-%        At the moment, totalparams and totalparamerrors and just the 
-%       values for a linear fit. Sometime later maybe change this to be 
+%        At the moment, totalparams and totalparamerrors and just the
+%       values for a linear fit. Sometime later maybe change this to be
 %       potentially a quadratic fit as well.
 %       The unit is Gt/yr.
-%   totalfit - Datapoints for the best fit line, so you can plot it, and 
-%       datapoints for the confidence intervals of this linear fit, so you 
+%   totalfit - Datapoints for the best fit line, so you can plot it, and
+%       datapoints for the confidence intervals of this linear fit, so you
 %       can plot them.
-%       To plot these you should use totalfit(:, 2) + totalfit(:, 3) and 
+%       To plot these you should use totalfit(:, 2) + totalfit(:, 3) and
 %       totalfit(:, 2) - totalfit(:, 3).
-%   eigfunInt - This is a vector of the integrals of the Slepian functions, 
+%   eigfunInt - This is a vector of the integrals of the Slepian functions,
 %       up to J
-%       With this we can multiply by the data or SLEPTSIG to get the 
+%       With this we can multiply by the data or SLEPTSIG to get the
 %       changes in total mass over time for each function.
 %       The unit is Gt.
-%   alphavar - The variances on the individual alpha function time series 
+%   alphavar - The variances on the individual alpha function time series
 %       (integrals)
-%       This is calculated by making a covariance matrix from SLEPTRES and 
-%       then doing the matrix multiplication with the eigenfunction 
+%       This is calculated by making a covariance matrix from SLEPTRES and
+%       then doing the matrix multiplication with the eigenfunction
 %       integrals.
 %
 % Last modified by
@@ -111,7 +111,7 @@ function varargout = slept2resid_new(varargin)
     addpath(fullfile(fileparts(mfilename('fullpath')), 'aux'));
     % Parse inputs
     [slept, date, fitwhat, givenerrors, spTerms, domain, truncation, ...
-        unit, beQuiet] = parseinputs(varargin{:});
+         unit, beQuiet] = parseinputs(varargin{:});
 
     % Format dates
     nMonth = length(date);
@@ -284,11 +284,11 @@ function varargout = slept2resid_new(varargin)
     % get the monthly values.  This is much faster.
 
     if isa(domain, 'GeoDomain') || ismatrix(domain)
-        G = glmalpha_new(domain, L);
+        G = glmalpha_new(domain, L, "BeQuiet", beQuiet);
         eigfunINT = integratebasis_new( ...
             G, domain, truncation, "BeQuiet", beQuiet);
     else
-        G = glmalpha_new(domain, L, phi, theta, omega);
+        G = glmalpha_new(domain, L, phi, theta, omega, "BeQuiet", beQuiet);
         eigfunINT = integratebasis_new( ...
             G, domain, truncation, phi, theta, "BeQuiet", beQuiet);
     end

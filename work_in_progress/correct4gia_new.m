@@ -1,4 +1,4 @@
-% [thedates,GIAt,GIAtU,GIAtL,trend]=CORRECT4GIA(thedates,model,TH,L)
+% [dates, GIAt, GIAtU, GIAtL, trend] = correct4gia(dates, model, domain, L)
 %
 % This function accepts an array of dates (in matlab datenum format) and
 % calculates the surface mass density change from a certain GIA model at
@@ -10,12 +10,11 @@
 % want the GIA projected into a Slepian basis, give that basis.
 %
 %
-% INPUT:
-%
-% thedates     An array of dates in matlab DATENUM format.  The first date
+% Input arguments
+%   thedates - An array of dates in matlab DATENUM format.  The first date
 %                is used as the reference date. [default: monthly points
 %                during 2004]
-% model        Which GIA model you want.  See references. Options include:
+%   model - Which GIA model you want.  See references. Options include:
 %                'Paulson07'    A model based on the ICE-5G ice load model
 %                               of Peltier (2004).  Suitable for both
 %                               Antarctica and Greenland.  As corrected by
@@ -30,7 +29,7 @@
 %                'W12a_v1'      A "best" model from Whitehouse et al (2012)
 %                               Suitable only for Antarctica.
 %
-% TH         Optional [default nothing]:Radius of the concentration
+%   domain - Optional [default nothing]:Radius of the concentration
 %              region (degrees) OR
 %              'england', 'eurasia',  'namerica', 'australia', 'greenland'
 %              'africa', 'samerica', 'amazon', 'orinoco', in which case
@@ -38,19 +37,16 @@
 %              [lon lat] an ordered list defining a closed curve [degrees]
 %              OR a cell containing a region and a buffer such
 %              as {'greenland' 0.5}
-% Lwindow    Optional [default nothing]: Bandwidth of the window [default
+%   L - Optional [default nothing]: Bandwidth of the window [default
 %              if you give a region: bandwidth of the data]
 %          If you gave a concentration radius for TH, then you need to
 %          specify these:
-% phi        Longitude of the center of the tapers (degrees)
-% theta      Colatitude of the center of the tapers (degrees)
-% omega      Anticlockwise azimuthal rotation of the tapers (degrees)
+%   phi - Longitude of the center of the tapers (degrees)
+%   theta - Colatitude of the center of the tapers (degrees)
+%   omega - Anticlockwise azimuthal rotation of the tapers (degrees)
 %
-%
-%
-% OUTPUT:
-%
-% GIAt          If you want SH coefficients for the GIA, then this will be
+% Output arguments
+%   GIAt - If you want SH coefficients for the GIA, then this will be
 %                a 3D matrix of GIA fields for each date requested.  The
 %                first dimension are the dates.  The second and third
 %                dimensions are the familiar lmcosi dimensions
@@ -59,10 +55,10 @@
 %                then it will be a matrix like "slept" where the first
 %                dimension is time and the second dimension is
 %                Slepian coefficient.
-% thedates      Your dates back to you.
-% GIAtU         Same as GIAt, but if the model has an upper bound
-% GIAtL         Same as GIAt, but if the model has a lower bound
-% trend         This is the magnitude of the correction in units of Gt/yr.
+%   dates - Your dates back to you.
+%   GIAtU - Same as GIAt, but if the model has an upper bound
+%   GIAtL - Same as GIAt, but if the model has a lower bound
+%   trend - This is the magnitude of the correction in units of Gt/yr.
 %                This output will only work if you gave a Slepian basis.
 %
 %

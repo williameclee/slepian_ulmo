@@ -575,7 +575,7 @@ function varargout = getIOfile(Pcenter, Rlevel, Ldata, unit, ...
 
     outputPath = fullfile(outputFolder, outputFile);
 
-    if ~exist('outputPath', 'file') && ~exist('inputFolder', 'dir')
+    if ~exist('outputPath', 'file') == 2 && ~exist('inputFolder', 'dir') == 2
         error('The data you asked for are not currently stored\nPlease check the input folder %s', inputFolder)
     end
 

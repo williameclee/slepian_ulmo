@@ -38,7 +38,7 @@ function varargout = mascon2slept(varargin)
 
     %% Finding precomputed data
     outputFolder = fullfile(getenv('GRACEDATA'), 'SlepianExpansions');
-    outputFile = sprintf('%s-CSRRL06%i-%s%s-SD-%s.mat', mfilename, L, domain.Id, dataType);
+    outputFile = sprintf('%s-CSRRL06%i-%s-SD-%s.mat', mfilename, L, domain.Id, dataType);
     outputPath = fullfile(outputFolder, outputFile);
 
     if exist(outputPath, 'file')
@@ -122,7 +122,7 @@ function varargout = parseinputs(varargin)
     addOptional(p, 'L', 60, @isnumeric);
     addOptional(p, 'TimeRange', [], ...
         @(x) ((isdatetime(x) || isnumeric(x)) && length(x) == 2) || isempty(x));
-    addParameter(p, 'BeQuiet', false, @islogical);
+    addParameter(p, 'BeQuiet', false, @(x) islogical(x) || isnumeric(x));
 
     parse(p, varargin{:});
     dataType = p.Results.DataType;
