@@ -45,6 +45,7 @@ A new class is introduced as an interface to geographic domains:
 
 The following functions have also been modified (mainly to support `GeoDomain`), and can probably safely replace the original functions:
 
+- `correct4gia` (from slepian_delta) → `correct4gia_new`, although this function should be archived
 - `glmalpha` (from slepian_alpha) → `glmalpha_new`
 - `grace2plmt` (from slepian_delta)
 - `grace2slept` (from slepian_delta) -> `grace2slept_new`
@@ -53,6 +54,7 @@ The following functions have also been modified (mainly to support `GeoDomain`),
 - `plm2slep` (from slepian_bravo) → `plm2slep_new`
 - `plm2xyz` (from slepian_alpha)
 - `slep2plm` (from slepian_bravo) → `slep2plm_new`
+- `slep2resid` (from slepian_bravo) → `slep2resid_new`
 
 The ultimate goal is to drop the `_new` suffixes and replace the original functions with the modified ones. Note that these functions are only tested for geographic domains, and may not work as expected for, e.g. circular caps.
 
@@ -72,8 +74,11 @@ Other supporting functions for visualisation include:
 
 - `gia2plmt`: Converts GIA data to SH coefficient time series.
 - `gia2slept`: Converts GIA data to Slepian coefficient time series.
+	The two functions combined replace `correct4gia` from slepian_delta.
+- `mascon2slept`: Converts mascon data to Slepian coefficient time series.
+- `mass2weq`: Converts mass data to water equivalent.
 - `slep2xyz`: Converts Slepian functions to a mesh on a sphere.
 
 ---
 Last modified by:
-- [En-Chi Lee (@williameclee)](https://github.com/williameclee), 2024/08/16
+- [En-Chi Lee (@williameclee)](https://github.com/williameclee), 2024/08/20
