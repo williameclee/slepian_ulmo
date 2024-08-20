@@ -112,13 +112,6 @@ function varargout = integratebasis_new(varargin)
             defval('pars', 0);
             rotb = 0;
 
-            % if iscell(domain)
-            %     dom = domain{1};
-            %     buf = domain{2};
-            % else
-            %     dom = domain;
-            % end
-
             % Rotate if needed
             try
                 rotb = feval(domain.Domain, 'rotated');
@@ -148,12 +141,6 @@ function varargout = integratebasis_new(varargin)
                     XY = feval(domain.Domain, ...
                         domain.Upscale, domain.Buffer);
                 end
-
-                % if iscell(domain) && length(domain) >= 3
-                %     XY = feval(domain{:});
-                % else
-                %     XY = feval(dom, pars, buf, MoreRegionSpecs{:});
-                % end
 
             end
 
@@ -206,9 +193,9 @@ function varargout = parseinputs(varargin)
     addOptional(p, 'phi', phiD);
     addOptional(p, 'theta', thetaD);
     addOptional(p, 'MoreRegionSpecs', {});
-    addParameter(p, 'ForceNew', false, @islogical);
-    addParameter(p, 'SaveData', true, @islogical);
-    addParameter(p, 'BeQuiet', false, @(x) isnumeric(x) || islogical(x));
+    addParameter(p, 'ForceNew', false, @(x) islogical(x) || isnumeric(x));
+    addParameter(p, 'SaveData', true, @(x) islogical(x) || isnumeric(x));
+    addParameter(p, 'BeQuiet', false, @(x) islogical(x) || isnumeric(x));
     parse(p, varargin{:});
 
     eigfun = conddefval(p.Results.Eigenfunctions, eigfunD);
@@ -217,9 +204,9 @@ function varargout = parseinputs(varargin)
     phi = conddefval(p.Results.phi, phiD);
     theta = conddefval(p.Results.theta, thetaD);
     moreRegionSpecs = p.Results.MoreRegionSpecs;
-    forceNew = p.Results.ForceNew;
+    forceNew = logical(p.Results.ForceNew);
     saveData = logical(p.Results.SaveData);
-    beQuiet = p.Results.BeQuiet;
+    beQuiet = logical(p.Results.BeQuiet);
 
     % if iscel
     if ischar(domain) || isstring(domain) && exist(domain, "file")

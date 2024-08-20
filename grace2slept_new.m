@@ -74,14 +74,13 @@
 function varargout = grace2slept_new(varargin)
     %% Initialisation
     % Parse inputs
-    [~, domain, L, phi, theta, omega, unit, ...
+    [~, domain, L, phi, theta, omega, unit, timeRange, ...
          dataCentre, releaseLevel, Ldata, productStr, truncation, ...
          deg1corr, c20corr, c30corr, forceNew, saveData, beQuiet] = ...
         parseinputs(varargin{:});
 
     % Figure out if it's low-pass or band-pass
     bp = length(L) == 2;
-
     maxL = max(L);
     % The spherical harmonic dimension
     if ~bp
@@ -92,7 +91,7 @@ function varargout = grace2slept_new(varargin)
 
     % Check if you want the Shannon number of eigenfunctions
     if strcmp(truncation, 'N')
-        truncation = round((L + 1) ^ 2 * domain.Spharea);
+        truncation = round((L(end) + 1) ^ 2 * domain.Spharea);
     else
         truncation = conddefval(truncation, ldim);
     end
@@ -108,20 +107,20 @@ function varargout = grace2slept_new(varargin)
     if phi == 0 && theta == 0 && omega == 0
         [G, V, ~, ~, N] = glmalpha_new( ...
             domain, L, "J", truncation, "BeQuiet", beQuiet);
-
     else
         % Need to get a complete GLMALPHA but for the rotated basis
         % Definitely, "single-order" has lost its meaning here, but the MTAP
         % will still identify what the order of the unrotated original was
         [G, V, ~, ~, N] ...
             = glmalphapto(domain, L, phi, theta, omega);
-        % Since GLMALPHAPTO currently has no option to limit a basis to J, do it here
+        % Since GLMALPHAPTO currently has no option to limit a basis to J,
+        % do it here
         G = G(:, 1:truncation);
     end
 
     % Sort by decreasing eigenvalue
-    [V, vi] = sort(V, 'descend');
-    G = G(:, vi);
+    [V, sortId] = sort(V, 'descend');
+    G = G(:, sortId);
 
     % If you don't do this, the eigenfunctions are ordered in the way
     %   that they correspond to single-orders back when, unrotated, they
@@ -144,39 +143,60 @@ function varargout = grace2slept_new(varargin)
     % If this expansion already exists, load it.  Otherwise, or if we force
     % it, make a new one (e.g. if you added extra months to the database).
     if outputExists && ~forceNew
-        load(outputPath, 'slepcoffs', 'thedates')
+        load(outputPath, 'slept', 'dates', 'thedates', 'slepcoffs')
 
         if ~beQuiet
             fprintf('%s loaded %s\n', upper(mfilename), outputPath)
         end
 
-        varargout = {slepcoffs, thedates, thedates, domain, G, CC, V, N};
+        if ~exist('slept', 'var') && exist('slepcoffs', 'var')
+            slept = slepcoffs;
+        end
+
+        if ~exist('dates', 'var') && exist('thedates', 'var')
+            dates = thedates;
+        end
+
+        save(outputPath, 'slept', 'dates');
+
+        % Truncate to required time range
+        if ~isempty(timeRange)
+            timeStartId = find(dates >= timeRange(1), 1, 'first');
+            timeEndId = find(dates <= timeRange(2), 1, 'last');
+            dates = dates(timeStartId:timeEndId);
+            slept = slept(timeStartId:timeEndId, :);
+        end
+
+        dates = dates(:);
+        dates = datetime(dates, 'ConvertFrom', 'datenum');
+        varargout = {dates, slept, domain, G, CC, V, N};
 
         return
     end
 
     % Use GRACE2PLMT to get the GRACE data
-    [sphCoeffs, ~, thedates] = grace2plmt(dataCentre, releaseLevel, ...
+    [sphCoeffs, ~, dates] = grace2plmt(dataCentre, releaseLevel, ...
         Ldata, unit, 'Deg1Correction', deg1corr, ...
         'C20Correction', c20corr, 'C30Correction', c30corr);
+    dates = dates(:);
     % *** Here I changed this. Run grace2plmt once to update your data, and
     % then when you call forcenew=1 from now on it will just update the
     % expansion
 
     % Initialize new coefficients
-    nmonths = length(thedates);
-    slepcoffs = nan(nmonths, truncation);
+    nMonths = length(dates);
+    slept = nan([nMonths, truncation]);
     % slepcalerrors = nan(nmonths, truncation);
 
     % Limit everything to the window bandwidth
-    potcoffsW = sphCoeffs(:, 1:size(lmcosiW, 1), 1:4);
+    potcoffsW = sphCoeffs(:, 1:addmup(L), 1:4);
     %cal_errorsW = cal_errors(:,1:size(lmcosiW,1),1:4);
 
     % Loop over the months
-    parfor monthId = 1:nmonths
+    parfor iMonth = 1:nMonths
         % Expand this month's POTENTIAL into the Slepian basis
-        sphCoeffs = squeeze(potcoffsW(monthId, :, :));
-        slepcoffs(monthId, :) = ...
+        sphCoeffs = squeeze(potcoffsW(iMonth, :, :));
+        slept(iMonth, :) = ...
             sphCoeffs(2 * size(sphCoeffs, 1) + ...
             ronmW(1:(maxL + 1) ^ 2))' * G;
 
@@ -187,7 +207,7 @@ function varargout = grace2slept_new(varargin)
     end
 
     if saveData
-        save(outputPath, 'slepcoffs', 'thedates');
+        save(outputPath, 'slept', 'dates');
 
         if ~beQuiet
             fprintf('%s saved %s\n', upper(mfilename), outputPath)
@@ -195,8 +215,18 @@ function varargout = grace2slept_new(varargin)
 
     end
 
+    % Truncate to required time range
+    if ~isempty(timeRange)
+        timeStartId = find(dates >= timeRange(1), 1, 'first');
+        timeEndId = find(dates <= timeRange(2), 1, 'last');
+        dates = dates(timeStartId:timeEndId);
+        slept = slept(timeStartId:timeEndId, :);
+    end
+
     % Collect output
-    varargout = {slepcoffs, thedates, thedates, domain, G, CC, V, N};
+    dates = dates(:);
+    dates = datetime(dates, 'ConvertFrom', 'datenum');
+    varargout = {dates, slept, domain, G, CC, V, N};
 
 end
 
@@ -204,7 +234,6 @@ end
 function varargout = parseinputs(varargin)
     productD = {'CSR', 'RL06', 60};
     domainD = 'greenland';
-    bufD = 0;
     LD = 18;
     taperD = 0;
     JD = [];
@@ -218,9 +247,7 @@ function varargout = parseinputs(varargin)
         @(x) (ischar(x)) || isstring(x) || iscell(x) || ...
         isa(x, 'GeoDomain') || (isnumeric(x) && size(x, 2) == 2) || ...
         (isempty(x)));
-    addOptional(p, 'Buffer', [], ...
-        @(x) (isnumeric(x) && x >= 0) || isempty(x));
-    addOptional(p, 'Lwindow', LD, ...
+    addOptional(p, 'L', LD, ...
         @(x) (isnumeric(x) && (length(x) <= 2)) || (isempty(x)));
     addOptional(p, 'phi', taperD, ...
         @(x) (isnumeric(x) && isscalar(x)) || (isempty(x)));
@@ -233,11 +260,12 @@ function varargout = parseinputs(varargin)
         strcmp(x, 'N')) || (isempty(x)));
     addOptional(p, 'Unit', unitD, ...
         @(x) (ischar(validatestring(x, {'POT', 'SD'}))) || (isempty(x)));
+    addOptional(p, 'TimeRange', [], ...
+        @(x) isempty(x) || ((isdatetime(x) || isnumeric(x))));
     addOptional(p, 'ForceNew', forceNewD, ...
         @(x) (isnumeric(x) && (x == 0 || x == 1)) || islogical(x) ...
         || (isempty(x)));
     addOptional(p, 'MoreRegionSpecs', {}, @iscell);
-    addOptional(p, 'Upscale', 0, @(x) isnumeric(x) && x >= 0);
     addParameter(p, 'BeQuiet', false, @islogical);
     addParameter(p, 'SaveData', true, @islogical);
     addParameter(p, 'Deg1Correction', true, @islogical);
@@ -248,25 +276,20 @@ function varargout = parseinputs(varargin)
     product = conddefval(p.Results.DataProduct, productD);
     domain = conddefval(p.Results.Domain, domainD);
 
-    if iscell(domain) && length(domain) >= 2
-        bufD = domain{2};
-    end
-
-    buf = conddefval(p.Results.Buffer, bufD);
-    L = conddefval(p.Results.Lwindow, LD);
+    L = conddefval(p.Results.L, LD);
     phi = conddefval(p.Results.phi, taperD);
     theta = conddefval(p.Results.theta, taperD);
     omega = conddefval(p.Results.omega, taperD);
     unit = conddefval(p.Results.Unit, unitD);
-    upscale = p.Results.Upscale;
     domainSpecs = p.Results.MoreRegionSpecs;
     J = conddefval(p.Results.Truncation, JD);
-    forcenew = conddefval(logical(p.Results.ForceNew), forceNewD);
+    forceNew = conddefval(logical(p.Results.ForceNew), forceNewD);
     beQuiet = p.Results.BeQuiet;
     saveData = p.Results.SaveData;
     deg1correction = p.Results.Deg1Correction;
     c20correction = p.Results.C20Correction;
     c30correction = p.Results.C30Correction;
+    timeRange = p.Results.TimeRange;
 
     dataCentre = product{1};
     releaseLevel = product{2};
@@ -275,23 +298,25 @@ function varargout = parseinputs(varargin)
 
     % Change the domain to a GeoDomain object if appropriate
     if ischar(domain) || isstring(domain) && exist(domain, "file")
-        domain = GeoDomain(domain, "Buffer", buf, "Upscale", upscale, ...
-            domainSpecs{:});
+        domain = GeoDomain(domain, domainSpecs{:});
     elseif iscell(domain) && length(domain) == 2
         domain = ...
-            GeoDomain(domain{1}, "Buffer", buf, "Upscale", upscale, ...
+            GeoDomain(domain{1}, "Buffer", domain{2}, ...
             domainSpecs{:});
     elseif iscell(domain) && length(domain) >= 3
-        domain = GeoDomain(domain{1}, "Buffer", buf, ...
-            "Upscale", upscale, domain{2:end}, domainSpecs{:});
+        domain = GeoDomain(domain{:}, domainSpecs{:});
+    end
+
+    if isdatetime(timeRange)
+        timeRange = datenum(timeRange); %#ok<DATNM>
     end
 
     varargout = ...
         {product, domain, L, ...
-         phi, theta, omega, unit, ...
+         phi, theta, omega, unit, timeRange, ...
          dataCentre, releaseLevel, Ldata, productId, J, ...
          deg1correction, c20correction, c30correction, ...
-         forcenew, saveData, beQuiet};
+         forceNew, saveData, beQuiet};
 end
 
 function [outputPath, outputExists] = getoutputfile(domain, L, ...

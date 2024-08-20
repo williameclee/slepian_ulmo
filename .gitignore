@@ -1,5 +1,6 @@
 # MATLAB testing and auxiliary files
 *_test*.m
+*.asv
 
 # Temporary files
 gausslegendrecof.mat

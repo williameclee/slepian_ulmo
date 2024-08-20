@@ -82,7 +82,7 @@
 %       Structure (1.0) [Data set]. Zenodo. doi: 10.5281/zenodo.5560862.
 %
 % Last modified by
-%   2024/08/16, williameclee@arizona.edu (@williameclee)
+%   2024/08/20, williameclee@arizona.edu (@williameclee)
 
 function varargout = gia2plmt(varargin)
     %% Initialisation
@@ -172,8 +172,8 @@ function varargout = parseinputs(varargin)
     % Allow skipping the time argument
     if nargin > 0 && ...
             (ischar(varargin{1}) || isstring(varargin{1}) || iscell(varargin{1}))
-        varargin(2:end + 1) = varargin(1:end);
-        varargin(1) = [];
+        varargin(2:end + 1) = varargin;
+        varargin{1} = [];
     end
 
     p = inputParser;
@@ -275,7 +275,7 @@ function plotgiamap(GIAt, time, deltaYear, model)
     % Get the coastlines
     coastLonlat = gshhscoastline('c', 'LonOrigin', 180, "BeQuiet", true);
 
-    [cLim, cStep] = optimalclim(GIAmesh, 'Percentile', 3);
+    [cLim, cStep] = optimalclim(GIAmesh, 'Percentile', 1);
     GIAmesh = max(min(GIAmesh, cLim(2)), cLim(1));
 
     figure(999)

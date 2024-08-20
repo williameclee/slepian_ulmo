@@ -108,7 +108,8 @@
 function varargout = correct4gia_new(varargin)
     %% Initialisation
     % Parse inputs
-    [time, model, domain, L, phi, theta, omega, ~, beQuiet] = parseinputs(varargin{:});
+    [time, model, domain, L, phi, theta, omega, ~, beQuiet] = ...
+        parseinputs(varargin{:});
 
     % Where the model save files are kept
     if strncmp(model, 'Morrow', 6)
@@ -122,69 +123,46 @@ function varargout = correct4gia_new(varargin)
 
     % Load this data (saved as lmcosiM)
     load(inputPath, 'lmcosiM', 'lmcosiU', 'lmcosiL');
+    hasBounds = exist('lmcosiU', 'var') && exist('lmcosiL', 'var');
 
     %% Main
-    % Convert the model from change per year to change per day
-    lmcosiM(:, 3:4) = lmcosiM(:, 3:4) / 365;
-
-    if exist('lmcosiU', 'var') && exist('lmcosiL', 'var')
-        lmcosiU(:, 3:4) = lmcosiU(:, 3:4) / 365;
-        lmcosiL(:, 3:4) = lmcosiL(:, 3:4) / 365;
-    end
-
     % Reference the date string to the first date
     if ~isscalar(time)
-        deltatime = time - time(1);
+        deltaYear = (time - time(1)) / 365;
     else
-        deltatime = 365;
+        deltaYear = 1;
     end
 
     % If we have a Slepian basis, do that, if not just do plms
     if exist('domain', 'var')
-
-        % Figure out if it's lowpass or bandpass
-        % lp = length(L) == 1;
-        % bp = length(L) == 2;
-        maxL = max(L);
-        % The spherical harmonic dimension
-        % ldim = (L(2 - lp) + 1) ^ 2 - bp * L(1) ^ 2;
-
         % Project the model
-        [~, ~, ~, lmcosiW, ~, ~, ~, ~, ~, ronm] = addmon(maxL);
-
         if isa(domain, 'GeoDomain') || ismatrix(domain)
-            [falpha, ~, N, ~, G] = plm2slep_new(lmcosiM, domain, L, "BeQuiet", beQuiet);
+            [slep, ~, N, ~, G] = plm2slep_new(lmcosiM, domain, L, ...
+                "BeQuiet", beQuiet);
         else
-            [falpha, ~, N, ~, G] = plm2slep_new(lmcosiM, domain, L, phi, theta, omega, "BeQuiet", beQuiet);
+            [slep, ~, N, ~, G] = plm2slep_new(lmcosiM, domain, L, ...
+                phi, theta, omega, "BeQuiet", beQuiet);
         end
 
-        % if isnumeric(domain)
-        %     [falpha, ~, N, ~, G] = plm2slep_new(lmcosiM, domain, L, phi, theta, omega, "BeQuiet", beQuiet);
-        % elseif iscell(domain) && length(domain) >= 3
-        %     [falpha, ~, N, ~, G] = plm2slep_new(lmcosiM, domain, L, "BeQuiet", beQuiet);
-        % else
-        %     [falpha, ~, N, ~, G] = plm2slep_new(lmcosiM, domain, L, "MoreRegionSpecs", moreDomainSpecs, "BeQuiet", beQuiet);
-        % end
-
-        if exist('lmcosiU', 'var') && exist('lmcosiL', 'var')
-            falphaU = plm2slep_new(lmcosiU, domain, L, "BeQuiet", beQuiet);
-            falphaL = plm2slep_new(lmcosiL, domain, L, "BeQuiet", beQuiet);
+        if hasBounds
+            slepU = plm2slep_new(lmcosiU, domain, L, "BeQuiet", beQuiet);
+            slepL = plm2slep_new(lmcosiL, domain, L, "BeQuiet", beQuiet);
         end
 
         % Scale to the new dates
-        GIAt = zeros([length(deltatime), length(falpha)]);
+        slept = zeros([length(deltaYear), length(slep)]);
 
-        if exist('lmcosiU', 'var') && exist('lmcosiL', 'var')
-            GIAtU = zeros([length(deltatime), length(falphaU)]);
-            GIAtL = zeros([length(deltatime), length(falphaL)]);
+        if hasBounds
+            sleptU = zeros([length(deltaYear), length(slepU)]);
+            sleptL = zeros([length(deltaYear), length(slepL)]);
         end
 
-        for i = 1:length(deltatime)
-            GIAt(i, :) = falpha * deltatime(i);
+        for iTime = 1:length(deltaYear)
+            slept(iTime, :) = slep * deltaYear(iTime);
 
-            if exist('lmcosiU', 'var') && exist('lmcosiL', 'var')
-                GIAtU(i, :) = falphaU * deltatime(i);
-                GIAtL(i, :) = falphaL * deltatime(i);
+            if hasBounds
+                sleptU(iTime, :) = slepU * deltaYear(iTime);
+                sleptL(iTime, :) = slepL * deltaYear(iTime);
             end
 
         end
@@ -194,47 +172,42 @@ function varargout = correct4gia_new(varargin)
         % coefficients representing the annual rate.
         % Note: the falpha from the models should already be in units of
         % surface mass density change per year.
-        for j = 1:round(N)
-            cosi = lmcosiW(:, 3:4);
-            cosi(ronm) = G(:, j);
-            CC{j} = [lmcosiW(:, 1:2), cosi];
-        end
+        J = round(N);
 
         if isa(domain, 'GeoDomain') || ismatrix(domain)
-            eigfunINT = integratebasis_new(CC, domain, round(N));
+            eigfunINT = integratebasis_new(G, domain, J, ...
+                "BeQuiet", beQuiet);
         else
-            eigfunINT = integratebasis_new(CC, domain, round(N), phi, theta);
+            eigfunINT = integratebasis_new(G, domain, J, phi, theta, ...
+                "BeQuiet", beQuiet);
         end
 
         % Since Int should have units of (fn * m^2), need to go from fractional
         % sphere area to real area.  If the fn is surface density, this output is
         % in kilograms.  Then change the units from kg to Gt in METRIC tons
-        eigfunINT = eigfunINT * (4 * pi * 6370e3 ^ 2) / 1e12;
-        % functionintegrals = eigfunINT;
+        eigfunINT = eigfunINT * (4 * pi * 6370e3 ^ 2);
 
         % Now multiply by the appropriate slepcoffs to get the months
         % This becomes alpha by months
-        %functimeseries=repmat(eigfunINT',1,nmonths).*sleptdelta(:,1:N)';
-        %functimeseries = sleptdelta(:,1:N)';
-
-        total = eigfunINT(1:round(N)) .* (falpha(1:round(N)) * 365); % Back to per year
+        total = slept(:, 1:J) * eigfunINT(1:J)';
+        total = total / 1e12; % Convert to gigaton
 
     else % Just do the plms
-        GIAt = zeros([length(deltatime), size(lmcosiM)]);
+        slept = zeros([length(deltaYear), size(lmcosiM)]);
 
-        if exist('lmcosiU', 'var') && exist('lmcosiL', 'var')
-            GIAtU = zeros([length(deltatime), size(lmcosiU)]);
-            GIAtL = zeros([length(deltatime), size(lmcosiL)]);
+        if hasBounds
+            sleptU = zeros([length(deltaYear), size(lmcosiU)]);
+            sleptL = zeros([length(deltaYear), size(lmcosiL)]);
         end
 
-        for i = 1:length(deltatime)
-            GIAt(i, :, 3:4) = lmcosiM(:, 3:4) * deltatime(i);
+        for iTime = 1:length(deltaYear)
+            slept(iTime, :, 3:4) = lmcosiM(:, 3:4) * deltaYear(iTime);
 
-            if exist('lmcosiU', 'var') && exist('lmcosiL', 'var')
-                GIAtU(i, :, 1:2) = lmcosiU(:, 1:2);
-                GIAtU(i, :, 3:4) = lmcosiU(:, 3:4) * deltatime(i);
-                GIAtL(i, :, 1:2) = lmcosiL(:, 1:2);
-                GIAtL(i, :, 3:4) = lmcosiL(:, 3:4) * deltatime(i);
+            if hasBounds
+                sleptU(iTime, :, 1:2) = lmcosiU(:, 1:2);
+                sleptU(iTime, :, 3:4) = lmcosiU(:, 3:4) * deltaYear(iTime);
+                sleptL(iTime, :, 1:2) = lmcosiL(:, 1:2);
+                sleptL(iTime, :, 3:4) = lmcosiL(:, 3:4) * deltaYear(iTime);
             end
 
         end
@@ -242,15 +215,14 @@ function varargout = correct4gia_new(varargin)
         total = 0;
     end
 
-    if size(GIAt, 1) == 1
-        GIAt = squeeze(GIAt);
-    end
-
     %% Returning requested outputs
-    if exist('lmcosiU', 'var') && exist('lmcosiL', 'var')
-        varargout = {GIAt, time, GIAtU, GIAtL};
+    slept = squeeze(slept);
+    if hasBounds
+        sleptU = squeeze(sleptU);
+        sleptL = squeeze(sleptL);
+        varargout = {slept, time, sleptU, sleptL};
     else
-        varargout = {GIAt, time, [], [], total};
+        varargout = {slept, time, [], [], total};
     end
 
 end
@@ -270,7 +242,8 @@ function varargout = parseinputs(varargin)
     addOptional(p, 'Model', modelD, ...
         @(x) ischar(x) || isempty(x));
     addOptional(p, 'Domain', domainD, ...
-        @(x) isnumeric(x) || iscell(x) || ischar(x) || isa(x, 'GeoDomain') || isempty(x));
+        @(x) isnumeric(x) || iscell(x) || ischar(x) || ...
+        isa(x, 'GeoDomain') || isempty(x));
     addOptional(p, 'L', LD, ...
         @(x) isnumeric(x) || isempty(x));
     addOptional(p, 'phi', phiD, ...
@@ -307,6 +280,7 @@ function varargout = parseinputs(varargin)
         time = datenum(time); %#ok<DATNM>
     end
 
-    varargout = {time, model, domain, L, phi, theta, omega, moreDomainSpecs, beQuiet};
+    varargout = {time, model, domain, L, phi, theta, omega, ...
+        moreDomainSpecs, beQuiet};
 
 end

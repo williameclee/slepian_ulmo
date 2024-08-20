@@ -6,13 +6,13 @@
 % Syntax
 %   slep2plm('demo')
 %       Runs a demo for the Slepian to spherical harmonic expansion.
-%   [lmcosi, V, N] = slep2plm(falpha, r, L, phi, theta, omega)
+%   [plm, V, N] = slep2plm(falpha, r, L, phi, theta, omega)
 %       Finds the expansion coefficients of the Slepian basis of a polar
 %       cap into the spherical harmonics.
-%   [lmcosi, V, N] = slep2plm(falpha, domain, L)
+%   [plm, V, N] = slep2plm(falpha, domain, L)
 %       Finds the expansion coefficients of the Slepian basis of a
 %       geographic domain into the spherical harmonics.
-%   [lmcosi, V, N] = slep2plm(__, 'Truncation', truncation)
+%   [plm, V, N] = slep2plm(__, 'Truncation', truncation)
 %       Finds the expansion with the specified number of Slepian functions
 %       to use.
 %   [__, MTAP, truncation] = slep2plm(__)
@@ -35,7 +35,7 @@
 %       The default value is the Shannon number N.
 %
 % Output arguments
-%   lmcosi - Standard-type real spherical harmonic expansion coefficients
+%   plm - Standard-type real spherical harmonic expansion coefficients
 %   V - Eigenvalues of the Slepian functions
 %   N - Shannon number
 %   MTAP
@@ -103,21 +103,27 @@ function varargout = slep2plm_new(varargin)
 
     %% Expansion
     % Get the mapping from LMCOSI into not-block-sorted GLMALPHA
-    [~, ~, ~, lmcosi, ~, ~, ~, ~, ~, ronm] = addmon(L);
+    [~, ~, ~, plm, ~, ~, ~, ~, ~, ronm] = addmon(L);
 
     % Perform the expansion of the signal into the Slepian basis
     % and stick these coefficients in at the right places
-    lmcosi(2 * size(lmcosi, 1) + ronm(1:(L + 1) ^ 2)) = ...
+    plm(2 * size(plm, 1) + ronm(1:(L + 1) ^ 2)) = ...
         G(:, 1:truncation) * falpha(1:truncation);
 
-    % Collect output
-    varargout = {lmcosi, V, N, MTAP, truncation};
+    %% Collecting output
+    varargout = {plm, V, N, MTAP, truncation};
+
+    if nargout > 0
+        return
+    end
+
+    % Plot the function
+    plotmesh(plm)
 end
 
 %% Subfunctions
 function varargout = parseinputs(varargin)
     domainD = 30;
-    LD = 18;
     phiD = 0;
     thetaD = 0;
     omegaD = 0;
@@ -128,7 +134,7 @@ function varargout = parseinputs(varargin)
     addOptional(p, 'Domain', domainD, ...
         @(x) ischar(x) || iscell(x) || isa(x, "GeoDomain") || ...
         isnumeric(x) || isempty(x));
-    addOptional(p, 'L', LD, @(x) isnumeric(x) || isempty(x));
+    addOptional(p, 'L', [], @(x) isnumeric(x) || isempty(x));
     addOptional(p, 'phi', phiD, @(x) isnumeric(x) || isempty(x));
     addOptional(p, 'theta', thetaD, @(x) isnumeric(x) || isempty(x));
     addOptional(p, 'omega', omegaD, @(x) isnumeric(x) || isempty(x));
@@ -138,7 +144,7 @@ function varargout = parseinputs(varargin)
     falpha = p.Results.falpha(:);
 
     domain = conddefval(p.Results.Domain, domainD);
-    L = conddefval(p.Results.L, LD);
+    L = p.Results.L;
     phi = conddefval(p.Results.phi, phiD);
     theta = conddefval(p.Results.theta, thetaD);
     omega = conddefval(p.Results.omega, omegaD);
@@ -155,5 +161,29 @@ function varargout = parseinputs(varargin)
         domain = GeoDomain(domain{:});
     end
 
+    L = conddefval(L, sqrt(length(falpha)) - 1);
+
     varargout = {falpha, domain, L, phi, theta, omega, truncation};
+end
+
+function plotmesh(lmcosi)
+    meshSize = 1;
+    [mesh, lon, lat] = plm2xyz(lmcosi, meshSize, "BeQuiet", true);
+    [cLim, cStep] = optimalclim(mesh, 'Percentile', 0);
+
+    figure(999)
+    set(gcf, "NumberTitle", 'off', "Name", ...
+        sprintf('%s', upper(mfilename)))
+    clf
+
+    [~, cLevels] = loadcbar(cLim, cStep, ...
+        "Title", 'Value of the function', ...
+        "Colormap", 'temperature anomaly');
+
+    hold on
+    contourf(lon, lat, mesh, cLevels, "LineStyle", 'none');
+    hold off
+
+    formatlonticks
+    formatlatticks
 end

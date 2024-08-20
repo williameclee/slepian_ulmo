@@ -1,65 +1,59 @@
-% [potcoffs,calErrors,thedates]=GRACE2PLMT(Pcenter,Rlevel,units,forcenew)
+%% GRACE2PLMT
+% Reads in the Level-2 GRACE geoid products from either the CSR or GFZ data
+% centres, does some processing, and saves them as a plmt matrix in a .mat
+% file. In particular, the coefficients are reordered to our prefered
+% lmcosi format, they are referenced to the WGS84 ellipsoid, the C20/C30
+% coefficients are replaced with more accurate measurements from satellite
+% laser ranging from Loomis et al, (2020), and the degree one coefficients
+% are substituted with those from Sun et al., (2016).  You have the option
+% of leaving them as geopotential or converting them to surface mass
+% density using the method of Wahr et al. 1998, based on Love numbers.
 %
-% This program reads in the Level-2 GRACE geoid products from either the CSR or
-% GFZ data centers, does some processing, and saves them as a plmt matrix
-% in a .mat file.  In particular, the coefficients are reordered to our
-% prefered lmcosi format, they are referenced to the WGS84 ellipsoid,
-% the C2,0 coefficients are replaced with more accurate measurements from
-% satellite laser ranging from Loomis et al, (2020), and the degree one coefficients are
-% substituted with those from Sun et al., (2016).  You have the option
-% of leaving them as geopotential
-% or converting them to surface mass density using the method of
-% Wahr et al. 1998, based on Love numbers (see PLM2POT).
+% % Syntax
+%   [plmt, plmterror, dates] = grace2plmt(Pcenter, Rlevel, unit, forcenew)
+%   [plmt, plmterror, dates] = grace2plmt(__, 'Name', Value)
 %
-% INPUT:
+% Input arguments
+%   Pcenter - The data centre
+%       - 'CSR': Center for Space Research
+%       - 'GFZ': GeoForschungsZentrum Potsdam
+%       - 'JPL': Jet Propulsion Laboratory
+%       The default data center is 'CSR'.
+%   Rlevel - The release level of the solution
+%       Either 'RL04','RL05', or 'RL06'.
+%       The default release level is 'RL06'.
+%   Ldata - The bandwidth of the date product
+%       In the case where there are more than one product from a data
+%       centre (such as BA 60 or BB 96 standard L2 products) this allows
+%       you to choose between them.
+%       The default L is 60.
+%   unit - The unit of the output
+%       - 'POT': Geopotential field.
+%       - 'SD': Surface mass density.
+%       The default field is 'POT'.
+%   forcenew - Whether to force new generation of a save file
+%       The default option is false.
+%   Deg1Correction, C20Correction, C30Correction - Whether to apply these
+%       corrections
+%       The default options are all true.
 %
-% Pcenter     'CSR' data center at the Center for Space Research
-%             'GFZ' data center at the GeoForschungsZentrum Potsdam
-% Rlevel      The release level of the solution you want.
-%              Either 'RL04','RL05', or 'RL06'
-% Ldata       The bandwidth of the dataproduct that you want [default: 60].
-%              In the case where there are more than one product from a
-%              datacenter (such as BA 60 or BB 96 standard L2 products)
-%              this allows you to choose between them.
-% units       'POT' or 'SD' for whether you want geopotential or surface
-%               mass density
-% forcenew    Whether or not you want to force new generation of a save file
-%              (1) or just use the one we already have (0) [default].
+% Output arguments
+%   Returns these variables and saves them in a .mat file:
+%   plmt - SH coefficients [nmonths x addmup(Ldata) x 4] in the specified
+%       unit
+%   plmterror - SH coefficients of the calibrated errors
+%       Note that the calibrated errors are not available for RL05 onwards.
+%   dates - time stamps
 %
-% OUTPUT:
-%
-% Returns these variables and saves them in a .mat file:
-%    potcoffs       potential coefficients [nmonths x addmup(Ldata) x 4]
-%                    these could also be in surface mass density
-%    thedates       time stamps in Matlab time
-%
-% NOTE:
-%
-%   5/18/2022 Added L to the inputs so that we can utilize more than one
-%    product from a data center. A corresponding change has been made in
-%    GRACE2SLEPT
-%
-%   2/19/2021 Formal or calibrated uncertainties have not been reported
-%    since RL04 so we will discontinue the output of these. The output
-%    variables will be altered so existing scripts will need to be adjusted
-%    to take this into account. A corresponding change has been made in
-%    GRACE2SLEPT
-%
+% Data sources
 %	GRACE data available from NASA PODAAC:
-%	https://podaac.jpl.nasa.gov/
+%	    https://podaac.jpl.nasa.gov/
 %
-%   See gracedeg1.m and gracedeg2.m to see how we update the spherical
-%   harmonic degree 1, degree 2, and degree 3 (when available)
-%   coefficients. These are usually read from the Technical Notes documents
-%   distributed alongside GRACE data.
-%
-%
-%
-% EXAMPLE: to make a new save file when you have added more months
-% [potcoffs, thedates] = grace2plmt('CSR', 'RL06', 60, 'SD', true);
+% See also
+%   GRACEDEG1, GRACEDEG2, PLM2POT
 %
 % Last modified by
-%   2024/08/13, williameclee@arizona.edu (@williameclee)
+%   2024/08/20, williameclee@arizona.edu (@williameclee)
 %   2022/05/18, charig@email.arizona.edu (@charig)
 %   2020/11/09, lashokkumar@arizona.edu
 %   2019/03/18, mlubeck@email.arizona.edu
@@ -71,59 +65,26 @@ function varargout = grace2plmt(Pcenter, Rlevel, varargin)
     [Pcenter, Rlevel, Ldata, unit, forceNew, deg1corr, c20corr, c30corr] = ...
         parseinputs(Pcenter, Rlevel, varargin{:});
 
-    % Where the original data files are kept
-    % changed by Will En-Chi Lee for his own directory structure and not to use defval
-    if ~isempty(getenv('ORIGINALGRACEDATA'))
-        rawDataFolder = fullfile(getenv('ORIGINALGRACEDATA'), ...
-            Rlevel, Pcenter);
-    elseif ~isempty(getenv('GRACEDATA'))
-        rawDataFolder = fullfile(getenv('GRACEDATA'), ...
-            'raw', Rlevel, Pcenter);
-    else
-        rawDataFolder = fullfile(getenv('IFILES'), ...
-            'GRACE', 'raw', Rlevel, Pcenter);
-    end
-
-    % Where you would like to save the new .mat file
-    if ~isempty(getenv('GRACEDATA'))
-        processedDataFolder = fullfile(getenv('GRACEDATA'));
-    else
-        processedDataFolder = fullfile(getenv('IFILES'), 'GRACE');
-    end
-
-    switch unit % no otherwise case since input validity is already checked
-        case 'SD'
-            processedDataFile = sprintf('%s/%s_%s_alldata_%s_%s.mat', ...
-                processedDataFolder, Pcenter, Rlevel, num2str(Ldata), unit);
-        case 'POT'
-            processedDataFile = sprintf('%s/%s_%s_alldata_%s.mat', ...
-                processedDataFolder, Pcenter, Rlevel, num2str(Ldata));
-    end
-
-    if ~c30corr
-        processedDataFile = strrep(processedDataFile, 'alldata', 'alldata_nC30');
-    end
-
-    if ~c20corr
-        processedDataFile = strrep(processedDataFile, 'alldata', 'alldata_nC20');
-    end
-
-    if ~deg1corr
-        processedDataFile = strrep(processedDataFile, 'alldata', 'alldata_nDeg1');
-    end
+    % Find the coefficient files
+    [inputFolder, outputPath] = getIOfile(...
+        Pcenter, Rlevel, Ldata, unit, deg1corr, c20corr, c30corr);
 
     % If this file already exists, load it.  Otherwise, or if we force it, make
     % a new one (e.g. you added extra months to the database).
-    if exist(processedDataFile, 'file') == 2 && forceNew == 0
-        load(processedDataFile, 'potcoffs', 'calerrors', 'date')
-        fprintf('%s loaed %s\n', upper(mfilename), processedDataFile)
+    if exist(outputPath, 'file') == 2 && forceNew == 0
+        load(outputPath, 'potcoffs', 'calerrors', 'date', 'thedates')
+        fprintf('%s loaded %s\n', upper(mfilename), outputPath)
+
+        if ~exist('calerrors', 'var')
+            calerrors = [];
+        end
+
+        if ~exist('dates', 'var') && exist('thedates', 'var')
+            date = thedates;
+        end
 
         varargout = {potcoffs, calerrors, date};
         return
-    end
-
-    if ~exist(rawDataFolder, 'dir') % raw data folder not found
-        error ('The data you asked for are not currently stored.')
     end
 
     % DATA CENTER
@@ -133,19 +94,19 @@ function varargout = grace2plmt(Pcenter, Rlevel, varargin)
             switch Rlevel
                 case 'RL04'
                     % Find the coefficient files
-                    dataFiles = ls2cell(fullfile(rawDataFolder, ...
+                    dataFiles = ls2cell(fullfile(inputFolder, ...
                     'GSM*G---_0004'));
                     % Find the error files
-                    errorFiles = ls2cell(fullfile(rawDataFolder, ...
+                    errorFiles = ls2cell(fullfile(inputFolder, ...
                     'GSM*G---_0004.txt'));
                     % Know a priori what the bandwidth of the coefficients is
                     Ldata = 120;
                 case 'RL05'
                     % Find the coefficient files
-                    dataFiles = ls2cell(fullfile(rawDataFolder, ...
+                    dataFiles = ls2cell(fullfile(inputFolder, ...
                     'GSM*G---_005a'));
                     % Find the error files
-                    errorFiles = ls2cell(fullfile(rawDataFolder, ...
+                    errorFiles = ls2cell(fullfile(inputFolder, ...
                     'GSM*G---_005a.txt'));
                     % Know a priori what the bandwidth of the coefficients is
                     Ldata = 90;
@@ -155,24 +116,24 @@ function varargout = grace2plmt(Pcenter, Rlevel, varargin)
 
             switch Rlevel
                 case 'RL04'
-                    dataFiles = ls2cell(fullfile(rawDataFolder, ...
+                    dataFiles = ls2cell(fullfile(inputFolder, ...
                     'GSM*0060_0004'));
-                    errorFiles = ls2cell(fullfile(rawDataFolder, ...
+                    errorFiles = ls2cell(fullfile(inputFolder, ...
                     'GSM*0060_0004.txt'));
                 case 'RL05'
-                    dataFiles = ls2cell(fullfile(rawDataFolder, ...
+                    dataFiles = ls2cell(fullfile(inputFolder, ...
                     'GSM*0060_0005'));
                 case 'RL06'
 
                     if Ldata == 60
-                        disp(fullfile(rawDataFolder, ...
+                        disp(fullfile(inputFolder, ...
                         'GSM*BA01_060*'))
                         % dataFiles=[ls2cell(fullfile(ddir1,'GSM*BA01_0600')) ls2cell(fullfile(ddir1,'GSM*BA01_0602'))];
-                        dataFiles = ls2cell(fullfile(rawDataFolder, ...
+                        dataFiles = ls2cell(fullfile(inputFolder, ...
                         'GSM*BA01_060*'));
                     elseif Ldata == 96
                         % dataFiles=[ls2cell(fullfile(ddir1,'GSM*BB01_0600')) ls2cell(fullfile(ddir1,'GSM*BB01_0602'))];
-                        dataFiles = ls2cell(fullfile(rawDataFolder, ...
+                        dataFiles = ls2cell(fullfile(inputFolder, ...
                         'GSM*BB01_060*'));
                     else
                         error(['Solutions with requested L=' num2str(Ldata) ' not currently stored']);
@@ -197,7 +158,7 @@ function varargout = grace2plmt(Pcenter, Rlevel, varargin)
 
             switch Rlevel
                 case 'RL05'
-                    dataFiles = ls2cell(fullfile(rawDataFolder, ...
+                    dataFiles = ls2cell(fullfile(inputFolder, ...
                     'GSM*JPLEM*0005'));
                     % JPL Release Level 5 has no calibrated error files
                     %errornames=ls2cell(fullfile(ddir1,'GSM*0060_0004.txt'));
@@ -211,6 +172,8 @@ function varargout = grace2plmt(Pcenter, Rlevel, varargin)
             Ldata = 90;
     end
 
+
+    %% Computing the coefficients
     % WGS84 reference SETUP
     % For now just hardcode the even zonal coefficients (J), later use
     % Frederik's GRS.m program, don't bother with the higher degrees
@@ -233,21 +196,21 @@ function varargout = grace2plmt(Pcenter, Rlevel, varargin)
 
     % Preallocation
     nmonths = length(dataFiles);
-    date = zeros(1, nmonths);
+    date = zeros(nmonths, 1);
     [dems, dels] = addmon(Ldata);
     % Calibrated errors are normally used instead, but they are kept here for
     % completeness.
     % Last two columns here are "formal" errors
-    potcoffs = nan(nmonths, addmup(Ldata), 6); % l m cos sin cosStd sinStd
+    potcoffs = nan([nmonths, addmup(Ldata), 6]); % l m cos sin cosStd sinStd
     % Last two columns here are "calibrated" errors
-    calerrors = nan(nmonths, addmup(Ldata), 4); % l m cos sin
+    calerrors = nan([nmonths, addmup(Ldata), 4]); % l m cos sin
 
     %% Loop over the months
     for monthId = 1:nmonths
         disp([upper(mfilename), 'processing month ' num2str(monthId)]);
 
         % load geopotential coefficients
-        dataFile = fullfile(rawDataFolder, dataFiles{monthId});
+        dataFile = fullfile(inputFolder, dataFiles{monthId});
 
         % Open and scan the file (data from all three centers is 10 columns)
         fid = fopen(dataFile);
@@ -416,7 +379,7 @@ function varargout = grace2plmt(Pcenter, Rlevel, varargin)
                 || strcmp(Rlevel, 'RL06'))
             calerrors(monthId, :, :) = [lmcosi_month(:, 1:2) zeros(size(lmcosi_month(:, 1:2)))];
         else
-            fname2 = fullfile(rawDataFolder, errorFiles{monthId});
+            fname2 = fullfile(inputFolder, errorFiles{monthId});
 
             % Open and scan the file (data from both Pcenters is 5 columns)
             fid = fopen(fname2);
@@ -430,9 +393,9 @@ function varargout = grace2plmt(Pcenter, Rlevel, varargin)
 
             % Only want columns 2-5, and as format double
             Earray = Earray(:, 2:5);
-            cal_errors_month = cellfun(@str2num, Earray);
+            calerrors_month = cellfun(@str2num, Earray);
             % [m,n] = size(cal_errors_month);
-            m = size(cal_errors_month, 1);
+            m = size(calerrors_month, 1);
 
             % Change the order of the coefficients so that
             % order m goes as [0 01 012 0123 ...]
@@ -445,12 +408,12 @@ function varargout = grace2plmt(Pcenter, Rlevel, varargin)
 
                 for j = 1:length(dems)
                     k = dels(i) + 1 + sum(revdel((1:dems(i) + 1)));
-                    new_ordering(j, :) = cal_errors_month(k, :);
-                    demm(j) = cal_errors_month(k, 2);
+                    new_ordering(j, :) = calerrors_month(k, :);
+                    demm(j) = calerrors_month(k, 2);
                     i = i + 1;
                 end
 
-                cal_errors_month = new_ordering;
+                calerrors_month = new_ordering;
             elseif strcmp('GSM-2_2006121-2006151_0028_EIGEN_G---_0004.txt', ...
                     errorFiles(monthId)) || strcmp(Rlevel, 'RL05')
                 % for one very odd GFZ file
@@ -466,11 +429,11 @@ function varargout = grace2plmt(Pcenter, Rlevel, varargin)
                         k = k - 3;
                     end
 
-                    new_ordering(j - 3, :) = cal_errors_month(k, :);
+                    new_ordering(j - 3, :) = calerrors_month(k, :);
                     i = i + 1;
                 end
 
-                cal_errors_month = new_ordering;
+                calerrors_month = new_ordering;
 
             else % for the rest of GFZ, which has slightly less odd formatting
                 new_ordering = zeros(m - 1, 4);
@@ -485,29 +448,30 @@ function varargout = grace2plmt(Pcenter, Rlevel, varargin)
                         k = k - 2;
                     end
 
-                    new_ordering(j - 3, :) = cal_errors_month(k, :);
+                    new_ordering(j - 3, :) = calerrors_month(k, :);
                     i = i + 1;
                 end
 
-                cal_errors_month = new_ordering;
+                calerrors_month = new_ordering;
             end
 
             % If from the GFZ data center, add terms for l=0 and 1
             % if Pcenter == 'GFZ'
             if strcmp(Pcenter, 'GFZ')
-                cal_errors_month = [0 0 0 0; 1 0 0 0; 1 1 0 0; cal_errors_month];
+                calerrors_month = [0 0 0 0; 1 0 0 0; 1 1 0 0; calerrors_month];
             end
 
             % Replace the C20 error from GRACE with the C20 error from SLR since we
             % used the C20 coefficient from SLR
-            fprintf('C20 error was %12.8e now %12.8e\n', cal_errors_month(4, 3), slrc20_error(where))
-            cal_errors_month(4, 3) = slrc20_error(where);
+            fprintf('C20 error was %12.8e now %12.8e\n', ...
+                calerrors_month(4, 3), slrc20_error(where))
+            calerrors_month(4, 3) = slrc20_error(where);
 
             % Replace the Deg1 error from GRACE with the Deg1 error from Swenson et al.
             if ~any(where1)
                 % Do nothing here
             else
-                cal_errors_month(2:3, 3:4) = squeeze(mydeg1(where1, :, 5:6));
+                calerrors_month(2:3, 3:4) = squeeze(mydeg1(where1, :, 5:6));
             end
 
             % Convert the geopotential error coefficients into surface mass
@@ -515,11 +479,12 @@ function varargout = grace2plmt(Pcenter, Rlevel, varargin)
             if strcmp(unit, 'SD')
                 % Need to make geoid first
                 a = fralmanac('a_EGM96', 'Earth');
-                cal_errors_month = plm2pot([cal_errors_month(:, 1:2) cal_errors_month(:, 3:4) * a], [], [], [], 4);
+                calerrors_month = plm2pot(...
+                    [calerrors_month(:, 1:2), calerrors_month(:, 3:4) * a], [], [], [], 4);
             end
 
             % Combine into one matrix
-            calerrors(monthId, :, :) = cal_errors_month;
+            calerrors(monthId, :, :) = calerrors_month;
 
         end % We have no errors?
 
@@ -527,7 +492,7 @@ function varargout = grace2plmt(Pcenter, Rlevel, varargin)
     end
 
     % Save
-    save(processedDataFile, 'potcoffs', 'calerrors', 'date');
+    save(outputPath, 'potcoffs', 'calerrors', 'date');
 
     % Collect output
     % Here we have "thedates" twice so that we don't break older code. But in
@@ -538,9 +503,9 @@ end
 %% Subfunctions
 function varargout = parseinputs(varargin)
     p = inputParser;
-    addRequired(p, 'Pcenter', ...
+    addOptional(p, 'Pcenter', 'CSR', ...
         @(x) ischar(validatestring(x, {'CSR', 'GFZ', 'JPL'})));
-    addRequired(p, 'Rlevel', ...
+    addOptional(p, 'Rlevel', 'RL06', ...
         @(x) ischar(validatestring(x, {'RL04', 'RL05', 'RL06'})));
     addOptional(p, 'Ldata', 60, ...
         @(x) isnumeric(x) && x > 0);
@@ -564,4 +529,55 @@ function varargout = parseinputs(varargin)
 
     varargout = {Pcenter, Rlevel, Ldata, unit, forcenew, ...
                      deg1correction, c20correction, c30correction};
+end
+
+function varargout = getIOfile(Pcenter, Rlevel, Ldata, unit, ...
+    deg1corr, c20corr, c30corr)
+
+    if ~isempty(getenv('ORIGINALGRACEDATA'))
+        inputFolder = fullfile(getenv('ORIGINALGRACEDATA'), ...
+            Rlevel, Pcenter);
+    elseif ~isempty(getenv('GRACEDATA'))
+        inputFolder = fullfile(getenv('GRACEDATA'), 'raw', ...
+            Rlevel, Pcenter);
+    else
+        inputFolder = fullfile(getenv('IFILES'), 'GRACE', 'raw', ...
+            Rlevel, Pcenter);
+    end
+
+    % Where you would like to save the new .mat file
+    if ~isempty(getenv('GRACEDATA'))
+        outputFolder = fullfile(getenv('GRACEDATA'));
+    else
+        outputFolder = fullfile(getenv('IFILES'), 'GRACE');
+    end
+
+    switch unit % no otherwise case since input validity is already checked
+        case 'SD'
+            outputFile = sprintf('%s_%s_alldata_%s_%s.mat', ...
+                Pcenter, Rlevel, num2str(Ldata), unit);
+        case 'POT'
+            outputFile = sprintf('%s_%s_alldata_%s.mat', ...
+                Pcenter, Rlevel, num2str(Ldata));
+    end
+
+    if ~c30corr
+        outputFile = strrep(outputFile, 'alldata', 'alldata_nC30');
+    end
+
+    if ~c20corr
+        outputFile = strrep(outputFile, 'alldata', 'alldata_nC20');
+    end
+
+    if ~deg1corr
+        outputFile = strrep(outputFile, 'alldata', 'alldata_nDeg1');
+    end
+
+    outputPath = fullfile(outputFolder, outputFile);
+
+    if ~exist('outputPath', 'file') && ~exist('inputFolder', 'dir')
+        error('The data you asked for are not currently stored\nPlease check the input folder %s', inputFolder)
+    end
+
+    varargout = {inputFolder, outputPath};
 end

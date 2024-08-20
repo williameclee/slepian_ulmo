@@ -60,12 +60,12 @@
 % Output arguments
 %   time - Time vector
 %   slept - GIA correction time series projected onto the Slepian basis
-%   sleptU, sleptL - Upper and lower bounds of the GIA correction time 
+%   sleptU, sleptL - Upper and lower bounds of the GIA correction time
 %       series, if available
 %   total - Total GIA correction
 %
 % Last modified by
-%   2024/08/16, williameclee@arizona.edu (@williameclee)
+%   2024/08/20, williameclee@arizona.edu (@williameclee)
 
 function varargout = gia2slept(varargin)
     %% Initialisation
@@ -75,57 +75,68 @@ function varargout = gia2slept(varargin)
 
     %% Loading the model
     % Get the yearly trend
-    warning('off', 'SLEPIAN:gia2plmt:noBoundsToReturn');
-    [plm, plmU, plmL] = gia2plmt( ...
-        [], model, L, "BeQuiet", beQuiet);
-    hasBounds = ~isnan(plmU) && ~isnan(plmL);
-
-    L = conddefval(L, max(plm(:, 1)));
-
-    %% Computing the basis
-    if isa(domain, 'GeoDomain') || ismatrix(domain)
-        [falpha, ~, N, ~, G] = plm2slep_new( ...
-            plm, domain, L, "BeQuiet", beQuiet);
-
-        if hasBounds
-            falphaU = plm2slep_new( ...
-                plmU, domain, L, "BeQuiet", beQuiet);
-            falphaL = plm2slep_new( ...
-                plmL, domain, L, "BeQuiet", beQuiet);
-        end
-
+    if strcmp(model, 'mascon')
+        slept = mascon2slept('gia', domain, L, ...
+            [time(1), time(end)] + [-1, 1]);
+        [G, ~, ~, ~, N] = glmalpha_new(domain, L, "BeQuiet", beQuiet);
+        hasBounds = false;
     else
-        [falpha, ~, N, ~, G] = plm2slep_new( ...
-            plm, domain, L, phi, theta, omega, "BeQuiet", beQuiet);
 
-        if hasBounds
-            falphaU = plm2slep_new( ...
-                plmU, domain, L, phi, theta, omega, "BeQuiet", beQuiet);
-            falphaL = plm2slep_new( ...
-                plmL, domain, L, phi, theta, omega, "BeQuiet", beQuiet);
-        end
+        warning('off', 'SLEPIAN:gia2plmt:noBoundsToReturn');
 
-    end
+        [plm, plmU, plmL] = gia2plmt( ...
+            [], model, L, "BeQuiet", beQuiet);
+        hasBounds = ~isnan(plmU) && ~isnan(plmL);
 
-    %% Getting the trend
-    if isempty(time) || isscalar(time)
-        % If time is scalar, interpret it as the day change
-        if isempty(time)
-            time = 365;
-            deltaYear = 1;
+        % plm(:, 3:4) = plm(:, 3:4) / sqrt(4 * pi); % TEST
+        L = conddefval(L, max(plm(:, 1)));
+
+        %% Computing the basis
+        if isa(domain, 'GeoDomain') || ismatrix(domain)
+            [falpha, ~, N, ~, G] = plm2slep_new( ...
+                plm, domain, L, "BeQuiet", beQuiet);
+
+            if hasBounds
+                falphaU = plm2slep_new( ...
+                    plmU, domain, L, "BeQuiet", beQuiet);
+                falphaL = plm2slep_new( ...
+                    plmL, domain, L, "BeQuiet", beQuiet);
+            end
+
         else
-            deltaYear = time / 365;
+            [falpha, ~, N, ~, G] = plm2slep_new( ...
+                plm, domain, L, phi, theta, omega, "BeQuiet", beQuiet);
+
+            if hasBounds
+                falphaU = plm2slep_new(plmU, domain, L, ...
+                    phi, theta, omega, "BeQuiet", beQuiet);
+                falphaL = plm2slep_new(plmL, domain, L, ...
+                    phi, theta, omega, "BeQuiet", beQuiet);
+            end
+
         end
 
-    else
-        deltaYear = (time - time(1)) / 365;
-    end
+        %% Getting the trend
+        if isempty(time) || isscalar(time)
+            % If time is scalar, interpret it as the day change
+            if isempty(time)
+                time = 365;
+                deltaYear = 1;
+            else
+                deltaYear = time / 365;
+            end
 
-    slept = deltaYear(:) * falpha(:)';
+        else
+            deltaYear = (time - time(1)) / 365;
+        end
 
-    if hasBounds
-        sleptU = deltaYear(:) * falphaU(:)';
-        sleptL = deltaYear(:) * falphaL(:)';
+        slept = deltaYear(:) * falpha(:)';
+
+        if hasBounds
+            sleptU = deltaYear(:) * falphaU(:)';
+            sleptL = deltaYear(:) * falphaL(:)';
+        end
+
     end
 
     %% Getting the total
@@ -169,7 +180,8 @@ function varargout = parseinputs(varargin)
 
     % Allow skipping the time argument
     if nargin > 0 && ...
-            (ischar(varargin{1}) || isstring(varargin{1}) || iscell(varargin{1}))
+            (ischar(varargin{1}) || isstring(varargin{1}) || ...
+            iscell(varargin{1}))
         varargin(2:end + 1) = varargin;
         varargin{1} = [];
     end
@@ -191,7 +203,7 @@ function varargout = parseinputs(varargin)
     addParameter(p, 'BeQuiet', 0.5, @(x) islogical(x) || isnumeric(x));
 
     parse(p, varargin{:});
-    time = p.Results.Time;
+    time = p.Results.Time(:);
     model = conddefval(p.Results.Model, modelD);
     domain = conddefval(p.Results.Domain, domainD);
     L = p.Results.L;
@@ -230,17 +242,23 @@ function plotgiamap(model, plm, slept, deltaYear, domain, L)
     meshLcl = meshLcl * deltaYear;
 
     coastLonlat = gshhscoastline('c', 'LonOrigin', 180, "BeQuiet", true);
+    domainLonlat = domain.Lonlat('LonOrigin', 180);
 
-    [cLim, cStep] = optimalclim(meshLcl, 'Percentile', 0);
+    [cLim, cStep] = optimalclim(meshLcl, 'Percentile', 1);
     mesh = max(min(mesh, cLim(2)), cLim(1));
     meshLcl = max(min(meshLcl, cLim(2)), cLim(1));
 
     %% Plotting
     % Protect underscore in model name
+    if iscell(model)
+        model = strjoin(model, '_');
+    end
+
     model = strrep(model, '_', '\_');
     figure(999)
     set(gcf, "NumberTitle", 'off', "Name", ...
-        sprintf('Localised GIA change in %.1f year(s) (%s)', deltaYear, upper(mfilename)))
+        sprintf('Localised GIA change in %.1f year(s) (%s)', ...
+        deltaYear, upper(mfilename)))
     clf
 
     subplot(1, 2, 1)
@@ -252,7 +270,7 @@ function plotgiamap(model, plm, slept, deltaYear, domain, L)
     hold on
     contourf(lon, lat, mesh, cLevels, 'LineStyle', 'none')
     plotqdm(coastLonlat, 'k');
-    plotqdm(domain.Lonlat, 'k', 'LineWidth', 1);
+    plotqdm(domainLonlat, 'k', 'LineWidth', 1);
     hold off
 
     subplot(1, 2, 2)
@@ -264,6 +282,6 @@ function plotgiamap(model, plm, slept, deltaYear, domain, L)
     hold on
     contourf(lon, lat, meshLcl, cLevels, 'LineStyle', 'none')
     plotqdm(coastLonlat, 'k');
-    plotqdm(domain.Lonlat, 'k', 'LineWidth', 1);
+    plotqdm(domainLonlat, 'k', 'LineWidth', 1);
     hold off
 end
