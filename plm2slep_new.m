@@ -87,7 +87,7 @@ function varargout = plm2slep_new(varargin)
     end
 
     % Parse inputs
-    [lmcosi, domain, L, phi, theta, omega, nosort, J, beQuiet] = ...
+    [lmcosi, domain, L, phi, theta, omega, nosort, J, beQuiet, GVN] = ...
         parseinputs(varargin{:});
 
     maxL = max(L);
@@ -106,7 +106,12 @@ function varargout = plm2slep_new(varargin)
 
     %% Computing the projection
     % If it is the standard North-Polar cap or a geographic region, it's easy
-    if phi == 0 && theta == 0 && omega == 0
+    if ~isempty(GVN)
+        G = GVN{1};
+        V = GVN{2};
+        N = GVN{3};
+        MTAP = nan;
+    elseif phi == 0 && theta == 0 && omega == 0
         % Get the Slepian basis; definitely not block-sorted as for the rotated
         % versions this will make no sense at all anymore
         % Glmalpha can handle a string, cell, or coordinates as TH, so this is ok
@@ -189,6 +194,7 @@ function varargout = parseinputs(varargin)
         @(x) isnumeric(x) || isempty(x));
     addOptional(p, 'MoreDomainSpecs', {}, @iscell);
     addParameter(p, 'BeQuiet', false, @(x) islogical(x) || isnumeric(x));
+    addParameter(p, 'GVN', {}, @(x) iscell(x) && length(x) == 3);
     parse(p, varargin{:});
 
     lmcosi = p.Results.lmcosi;
@@ -202,6 +208,7 @@ function varargout = parseinputs(varargin)
     upscale = conddefval(p.Results.Upscale, upscaleD);
     moreRegionSpecs = p.Results.MoreDomainSpecs;
     beQuiet = logical(p.Results.BeQuiet);
+    GVN = p.Results.GVN;
 
     if ischar(domain) || isstring(domain) && exist(domain, "file")
         domain = GeoDomain(domain, "Upscale", upscale, moreRegionSpecs{:});
@@ -212,5 +219,5 @@ function varargout = parseinputs(varargin)
         domain = GeoDomain(domain{1}, "Upscale", upscale, domain{2:end});
     end
 
-    varargout = {lmcosi, domain, L, phi, theta, omega, nosort, J, beQuiet};
+    varargout = {lmcosi, domain, L, phi, theta, omega, nosort, J, beQuiet, GVN};
 end

@@ -118,10 +118,12 @@ function varargout = parseinputs(varargin)
     p = inputParser;
     addOptional(p, 'DataType', 'mascon', @ischar);
     addOptional(p, 'Domain', 'oceans', ...
-        @(x) ischar(x) || isstring(x) || iscell(x) || isa(x, 'GeoDomain') || isnumeric(x));
+        @(x) ischar(x) || isstring(x) || iscell(x) || ...
+        isa(x, 'GeoDomain') || isnumeric(x));
     addOptional(p, 'L', 60, @isnumeric);
     addOptional(p, 'TimeRange', [], ...
-        @(x) ((isdatetime(x) || isnumeric(x)) && length(x) == 2) || isempty(x));
+        @(x) ((isdatetime(x) || isnumeric(x)) && length(x) == 2) || ...
+        isempty(x));
     addParameter(p, 'BeQuiet', false, @(x) islogical(x) || isnumeric(x));
 
     parse(p, varargin{:});

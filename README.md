@@ -41,6 +41,16 @@ A new class is introduced as an interface to geographic domains:
 
 - `GeoDomain`: A class that supports a few new methods that make fetching vertices and defining file names easier.
 
+### Projection of other fields to Slepian functions
+The CSR GRACE mascon data (all components), various GIA models, and the sea-level fingerprints (all components) are natively supported to be projected to Slepian functions. The functions are:
+
+- `gia2plmt`: The geoid deformation due to GIA is projected to SH coefficients.
+- `gia2slept`: The geoid deformation due to GIA is projected to Slepian coefficients. This and the above function replace `correct4gia` from slepian_delta.
+- `mascon2plmt`: The CSR GRACE mascon data is projected to Slepian coefficients.
+- `mascon2slept`: The CSR GRACE mascon data is projected to Slepian coefficients.
+- `slf2plmt`: The sea-level fingerprints are projected to SH coefficients.
+- `slf2slept`: The sea-level fingerprints are projected to Slepian coefficients.
+
 ### Modifications to functions from other packages
 
 The following functions have also been modified (mainly to support `GeoDomain`), and can probably safely replace the original functions:
@@ -72,13 +82,20 @@ Other supporting functions for visualisation include:
 
 ### Other supporting functions
 
-- `gia2plmt`: Converts GIA data to SH coefficient time series.
-- `gia2slept`: Converts GIA data to Slepian coefficient time series.
-	The two functions combined replace `correct4gia` from slepian_delta.
-- `mascon2slept`: Converts mascon data to Slepian coefficient time series.
 - `mass2weq`: Converts mass data to water equivalent.
 - `slep2xyz`: Converts Slepian functions to a mesh on a sphere.
 
+### Examples and demos
+
+Mant functions in this package have demos. Use
+
+```matlab
+    fun('demo')
+```
+
+to run the demo of function `fun` (use the `help` command to see more details of supported demo IDs).
+Some examples can also be run directly from the examples directory.
+
 ---
 Last modified by:
-- [En-Chi Lee (@williameclee)](https://github.com/williameclee), 2024/08/20
+- [En-Chi Lee (@williameclee)](https://github.com/williameclee), 2024/08/22

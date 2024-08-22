@@ -1,3 +1,49 @@
+%% SLF2PLMT
+% Reads sea level fingerprints (SLF) SH coefficients
+%
+% Syntax
+%   [time, plmLandload, plmRsl, plmGeoid, plmBedrock] = ...
+%       slf2plmt(pcenter, rframe, rotation)
+%   [__] = slf2plmt(__, L, timerange)
+%   [__] = slf2plmt(__, 'Name', Value)
+%
+% Input arguments
+%   pcenter - The GRACE data centre from which the SLF data is derived
+%       Must be 'CSR', 'JPL', or 'GFZ'.
+%       The default data centre is 'CSR'.
+%   rframe - The reference frame of the SLF data
+%       Must be 'CF' (centre-of-figure) or 'CM' (centre-of-mass).
+%       The default reference frame is 'CF'.
+%   rotation - Whether the rotation effect is included
+%       Must be true or false.
+%       The default is true.
+%   L - The maximum degree of the SH coefficients to be returned
+%       The default value is the maximum degree of the data files (60).
+%   timerange - The time range of the SH coefficients to be returned
+%       Must be a two-element DATETIME or DATENUM array.
+%       The default time range is the entire time range of the data files.
+%   ForceNew - Whether to force the recomputation of the SH coefficients
+%       The default option is false.
+%   BeQuiet - Whether to suppress the output
+%       The default option is false.
+%   SaveData - Whether to save the SH coefficients to a .mat file
+%       The default option is true.
+%
+% Output arguments
+%   time - The time stamps of the SH coefficients
+%   plmLandload - The SH coefficients of the land load
+%   plmRsl - The SH coefficients of the relative sea level
+%   plmGeoid - The SH coefficients of the geoid
+%   plmBedrock - The SH coefficients of the bedrock
+%
+% Data source
+%   The SLF coefficients are from
+%       Adhikari et al. (2019)
+%       doi: 10.5194/essd-11-629-2019
+%
+% Last modified by
+%   2024/08/22, williameclee@arizona.edu(@williameclee)
+
 function varargout = slf2plmt(varargin)
     %% Initialisation
     % Parse inputs
@@ -75,7 +121,7 @@ function varargout = parseinputs(varargin)
         @(x) islogical(x) || isnumeric(x));
     addOptional(p, 'L', [], ...
         @(x) isscalar(x) && isnumeric(x));
-    addOptional(p, 'TimeRange', datetime(2023, 1, 1), ...
+    addOptional(p, 'TimeRange', [], ...
         @(x) isdatetime(x) || isnumeric(x));
     addParameter(p, 'ForceNew', false, ...
         @(x) islogical(x) || isnumeric(x));
@@ -147,10 +193,10 @@ function varargout = getIOfiles(center, frame, rotation)
             error('Unknown rotation: %s', rotation);
     end
 
-    dataFolder = fullfile(getenv('COASTLINE-PROJECTION'), ...
-        'data', 'Adhikari2019', 'SLFsh_coefficients');
+    dataFolder = fullfile(getenv('IFILES'), ...
+        'SLF', 'Adhikari2019', 'SLFsh_coefficients');
 
-    % Find data files
+    %% Find data files
     inputFolder = fullfile( ...
         dataFolder, centerFolder, frameFolder, rotFolder);
 
@@ -177,7 +223,7 @@ function varargout = getIOfiles(center, frame, rotation)
     inputPaths = fullfile(inputFolder, inputFiles);
 
     % Find output file location
-    outputFile = sprintf('Plm_%s_%s_%i.mat', ...
+    outputFile = sprintf('SLF-%s-%s-%i.mat', ...
         center, frame, uint8(rotation));
     outputPath = fullfile(dataFolder, outputFile);
 
@@ -274,8 +320,17 @@ end
 function varargout = truncatetimerange(time, trange, varargin)
     maxTrange = [min(time), max(time)];
 
-    if isscalar(trange)
-    elseif isempty(trange) || all(isnat(trange))
+    if isempty(trange)
+        % varargout
+        if nargin == 2
+            varargout = {time};
+        else
+            varargout = [{time}, varargin];
+        end
+
+        return
+    elseif isscalar(trange)
+    elseif all(isnat(trange))
         trange = maxTrange;
     elseif any(isnat(trange)) || ...
             trange(1) < maxTrange(1) || trange(2) > maxTrange(2)

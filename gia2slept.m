@@ -83,7 +83,6 @@ function varargout = gia2slept(varargin)
     else
 
         warning('off', 'SLEPIAN:gia2plmt:noBoundsToReturn');
-
         [plm, plmU, plmL] = gia2plmt( ...
             [], model, L, "BeQuiet", beQuiet);
         hasBounds = ~isnan(plmU) && ~isnan(plmL);
