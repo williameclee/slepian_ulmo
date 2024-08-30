@@ -44,12 +44,15 @@ A new class is introduced as an interface to geographic domains:
 ### Projection of other fields to Slepian functions
 The CSR GRACE mascon data (all components), various GIA models, and the sea-level fingerprints (all components) are natively supported to be projected to Slepian functions. The functions are:
 
-- `gia2plmt`: The geoid deformation due to GIA is projected to SH coefficients.
-- `gia2slept`: The geoid deformation due to GIA is projected to Slepian coefficients. This and the above function replace `correct4gia` from slepian_delta.
-- `mascon2plmt`: The CSR GRACE mascon data is projected to Slepian coefficients.
-- `mascon2slept`: The CSR GRACE mascon data is projected to Slepian coefficients.
-- `slf2plmt`: The sea-level fingerprints are projected to SH coefficients.
-- `slf2slept`: The sea-level fingerprints are projected to Slepian coefficients.
+- `gia2plmt`: Fetch the the geoid deformation due to GIA projected to SH coefficients.
+- `gia2slept`: Fetch the geoid deformation due to GIA projected to Slepian coefficients. This and the above function replace `correct4gia` from slepian_delta.
+- `grace2trend`: Compute the GRACE mass trend in a given domain.
+- `mascon2plmt`: Fetch the CSR GRACE mascon data projected to Slepian coefficients.
+- `mascon2slept`: Fetch the CSR GRACE mascon data projected to Slepian coefficients.
+- `mass2weq`: Converts mass data to water equivalent.
+- `slep2xyz`: Converts Slepian functions to a mesh on a sphere.
+- `slf2plmt`: Fetch the sea-level fingerprints projected to SH coefficients.
+- `slf2slept`: Fetch the sea-level fingerprints projected to Slepian coefficients.
 
 ### Modifications to functions from other packages
 
@@ -80,11 +83,6 @@ Additionally, `correct4gia` (from slepian_delta) has been split into two functio
 Other supporting functions for visualisation include:
 `formatlonticks`, `fotmatlatticks`, `loadcbar`, `loadcmap`, and more.
 
-### Other supporting functions
-
-- `mass2weq`: Converts mass data to water equivalent.
-- `slep2xyz`: Converts Slepian functions to a mesh on a sphere.
-
 ### Examples and demos
 
 Mant functions in this package have demos. Use
@@ -98,4 +96,4 @@ Some examples can also be run directly from the examples directory.
 
 ---
 Last modified by:
-- [En-Chi Lee (@williameclee)](https://github.com/williameclee), 2024/08/22
+- [En-Chi Lee (@williameclee)](https://github.com/williameclee), 2024/08/30

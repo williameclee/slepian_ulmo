@@ -45,7 +45,7 @@
 %   SPHAREA
 %
 % Last modified by
-%   2021/08/14, williameclee@arizona.edu (@williameclee)
+%   2021/08/27, williameclee@arizona.edu (@williameclee)
 
 classdef GeoDomain
 
@@ -109,7 +109,7 @@ classdef GeoDomain
             p = inputParser;
             addOptional(p, 'Format', 'short', ...
                 @(x) (ischar(x) || isstring(x)) && ...
-                ismember(lower(x), {'short', 'long'}));
+                ismember(lower(x), {'short', 'long', 'abbrevation'}));
             parse(p, varargin{:});
             format = p.Results.Format;
 
