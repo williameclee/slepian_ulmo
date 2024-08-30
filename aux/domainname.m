@@ -10,6 +10,7 @@
 %       The domain name should be the name of a function that returns the
 %       domain vertices.
 %   fmt - The format of the domain name
+%       - 'abbrevation' or 'abbr' - Abbrevation
 %       - 'short' - Short name
 %       - 'long' - Long name
 %       The default value is 'short'.
@@ -24,17 +25,17 @@
 %   'North America'
 %
 % Last modified by
-%   2024/08/12, williameclee@arizona.edu (@williameclee)
+%   2024/08/27, williameclee@arizona.edu (@williameclee)
 
 function domainName = domainname(varargin)
     p = inputParser;
     addRequired(p, 'Domain', ...
         @(x) ischar(x) || isstring(x) || iscell(x));
     addOptional(p, 'Format', 'short', ...
-        @(x) ischar(x) || isstring(x));
+        @(x) (ischar(x) || isstring(x)) && ismember(x, {'abbrevation', 'short', 'long'}));
     parse(p, varargin{:});
     domain = p.Results.Domain;
-    format = p.Results.Format;
+    format = char(p.Results.Format);
 
     if iscell(domain)
         domain = domain{1};
@@ -42,10 +43,16 @@ function domainName = domainname(varargin)
 
     domain = lower(domain);
 
+    if strcmp(format, 'abbr')
+        format = 'abbrevation';
+    end
+
     switch domain
         case 'namerica'
 
             switch format
+                case 'abbrevation'
+                    domainName = 'NA';
                 case 'short'
                     domainName = 'N America';
                 case 'long'
@@ -55,6 +62,8 @@ function domainName = domainname(varargin)
         case 'samerica'
 
             switch format
+                case 'abbrevation'
+                    domainName = 'SA';
                 case 'short'
                     domainName = 'S America';
                 case 'long'
@@ -65,11 +74,21 @@ function domainName = domainname(varargin)
             domainName = 'All continents';
 
         case 'oceans'
-            domainName = 'All oceans';
+
+            switch format
+                case 'abbrevation'
+                    domainName = 'Global';
+                case 'short'
+                    domainName = 'All oceans';
+                case 'long'
+                    domainName = 'All oceans';
+            end
 
         case 'atlantic'
 
             switch format
+                case 'abbrevation'
+                    domainName = 'Atl.';
                 case 'short'
                     domainName = 'Atlantic';
                 case 'long'
@@ -79,6 +98,8 @@ function domainName = domainname(varargin)
         case 'natlantic'
 
             switch format
+                case 'abbrevation'
+                    domainName = 'N. Atl.';
                 case 'short'
                     domainName = 'N Atlantic';
                 case 'long'
@@ -88,6 +109,8 @@ function domainName = domainname(varargin)
         case 'satlantic'
 
             switch format
+                case 'abbrevation'
+                    domainName = 'S. Atl.';
                 case 'short'
                     domainName = 'S Atlantic';
                 case 'long'
@@ -97,6 +120,8 @@ function domainName = domainname(varargin)
         case 'pacific'
 
             switch format
+                case 'abbrevation'
+                    domainName = 'Pac.';
                 case 'short'
                     domainName = 'Pacific';
                 case 'long'
@@ -106,6 +131,8 @@ function domainName = domainname(varargin)
         case 'npacific'
 
             switch format
+                case 'abbrevation'
+                    domainName = 'N. Pac.';
                 case 'short'
                     domainName = 'N Pacific';
                 case 'long'
@@ -115,6 +142,8 @@ function domainName = domainname(varargin)
         case 'spacific'
 
             switch format
+                case 'abbrevation'
+                    domainName = 'S. Pac.';
                 case 'short'
                     domainName = 'S Pacific';
                 case 'long'
@@ -128,6 +157,8 @@ function domainName = domainname(varargin)
                     domainName = 'Indian';
                 case 'long'
                     domainName = 'Indian Ocean';
+                otherwise
+                    domainName = 'Indian';
             end
 
         otherwise

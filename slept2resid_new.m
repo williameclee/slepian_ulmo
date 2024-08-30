@@ -101,9 +101,9 @@
 %       integrals.
 %
 % Last modified by
-%   08/19/2024, williameclee@arizona.edu (@williameclee)
-%   06/07/2024, williameclee@arizona.edu (@williameclee)
-%   06/26/2012, charig@princeton.edu (@harig00)
+%   2024/08/30, williameclee@arizona.edu (@williameclee)
+%   2024/06/07, williameclee@arizona.edu (@williameclee)
+%   2012/06/26, charig@princeton.edu (@harig00)
 
 function varargout = slept2resid_new(varargin)
     %% Initialisation
@@ -347,7 +347,7 @@ end
 function varargout = parseinputs(varargin)
     sleptD = ...
         'grace2slept("CSR", "greenland", 0.5, 60, [], [], [], [], "SD")';
-    dateD = datenum(2004, 1:12, 1); %#ok<DATNM>
+    dateD = datetime(2004, 1:12, 1);
     fitwhatD = [3, 365.0];
     givenerrorsD = [];
     specialtermsD = {NaN};

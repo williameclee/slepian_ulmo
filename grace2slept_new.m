@@ -1,12 +1,12 @@
 %% GRACE2SLEPT
-% Takes GRACE/GRACE-FO gravimetry data created by GRACE2PLM
-% and projects this data into the requested Slepian basis.
+% Takes GRACE/GRACE-FO gravimetry data created by GRACE2PLM and projects 
+% this data into the requested Slepian basis.
 %
 % Syntax
-%   [slept, slept_err, date] = grace2slept(product, domain, buf, L)
-%   [slept, slept_err, date] = ...
+%   [date, slept] = grace2slept(product, domain, buf, L)
+%   [date, slept] = ...
 %       grace2slept(product, r, buf, L, phi, theta, omega, J)
-%   [slept, slept_err, date] = grace2slept(__, 'Name', Value)
+%   [date, slept] = grace2slept(__, 'Name', Value)
 %   [__, domain, G, eigfun, V, N] = grace2slept(__)
 %
 % Input arguments
@@ -67,7 +67,7 @@
 %   PLM2SLEP
 %
 % Last modified by
-%   2024/08/15, williameclee@arizona.edu (@williameclee)
+%   2024/08/30, williameclee@arizona.edu (@williameclee)
 %   2022/05/18, charig@princeton.edu (@harig00)
 %   2012/06/26, fjsimons@alum.mit.edu (@fjsimons)
 
@@ -266,11 +266,14 @@ function varargout = parseinputs(varargin)
         @(x) (isnumeric(x) && (x == 0 || x == 1)) || islogical(x) ...
         || (isempty(x)));
     addOptional(p, 'MoreRegionSpecs', {}, @iscell);
-    addParameter(p, 'BeQuiet', false, @islogical);
-    addParameter(p, 'SaveData', true, @islogical);
-    addParameter(p, 'Deg1Correction', true, @islogical);
-    addParameter(p, 'C20Correction', true, @islogical);
-    addParameter(p, 'C30Correction', true, @islogical);
+    addParameter(p, 'BeQuiet', false, @(x) islogical(x) || isnumeric(x));
+    addParameter(p, 'SaveData', true, @(x) islogical(x) || isnumeric(x));
+    addParameter(p, 'Deg1Correction', true, ...
+        @(x) islogical(x) || isnumeric(x));
+    addParameter(p, 'C20Correction', true, ...
+        @(x) islogical(x) || isnumeric(x));
+    addParameter(p, 'C30Correction', true, ...
+        @(x) islogical(x) || isnumeric(x));
     parse(p, varargin{:});
 
     product = conddefval(p.Results.DataProduct, productD);
@@ -284,12 +287,16 @@ function varargout = parseinputs(varargin)
     domainSpecs = p.Results.MoreRegionSpecs;
     J = conddefval(p.Results.Truncation, JD);
     forceNew = conddefval(logical(p.Results.ForceNew), forceNewD);
-    beQuiet = p.Results.BeQuiet;
-    saveData = p.Results.SaveData;
-    deg1correction = p.Results.Deg1Correction;
-    c20correction = p.Results.C20Correction;
-    c30correction = p.Results.C30Correction;
+    beQuiet = logical(p.Results.BeQuiet);
+    saveData = logical(p.Results.SaveData);
+    deg1correction = logical(p.Results.Deg1Correction);
+    c20correction = logical(p.Results.C20Correction);
+    c30correction = logical(p.Results.C30Correction);
     timeRange = p.Results.TimeRange;
+
+    if isnumeric(product{2})
+        product{2} = ['RL0', num2str(product{2})];
+    end
 
     dataCentre = product{1};
     releaseLevel = product{2};

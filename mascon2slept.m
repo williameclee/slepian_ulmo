@@ -29,6 +29,7 @@
 %   timeNum - The dates in datenum format
 %
 % Last modified by
+%   2024/08/30, williameclee@arizona.edu (@williameclee)
 %   2024/08/20, williameclee@arizona.edu (@williameclee)
 
 function varargout = mascon2slept(varargin)
@@ -74,13 +75,13 @@ function varargout = mascon2slept(varargin)
             [slrC30Plmt, timeSlrC30] = mascon2plmt('slrC30', L);
 
             dataPlmt = deg1Plmt;
-            dataPlmt(:, :, 3:4) = dataPlmt(:, :, 3:4) ...
-                - masconC20Plmt(:, :, 3:4) + slrC20Plmt(:, :, 3:4) ...
-                - masconC30Plmt(:, :, 3:4);
+            dataPlmt(:, 3:4, :) = dataPlmt(:, 3:4, :) ...
+                - masconC20Plmt(:, 3:4, :) + slrC20Plmt(:, 3:4, :) ...
+                - masconC30Plmt(:, 3:4, :);
 
             slrC30StartId = find(time == timeSlrC30(1), 1, 'first');
-            dataPlmt(slrC30StartId:end, :, 3:4) = ...
-                dataPlmt(slrC30StartId:end, :, 3:4) + slrC30Plmt(:, :, 3:4);
+            dataPlmt(:, 3:4, slrC30StartId:end) = ...
+                dataPlmt(:, 3:4, slrC30StartId:end) + slrC30Plmt(:, 3:4, :);
         otherwise
             [dataPlmt, time] = mascon2plmt(dataType, L);
     end
@@ -90,10 +91,10 @@ function varargout = mascon2slept(varargin)
     %% Computing Slepian expansions
     dataSlept = zeros([length(time), (L + 1) ^ 2]);
 
-    [dataSlept(1, :), V, N, ~, G] = plm2slep_new(squeeze(dataPlmt(1, :, :)), domain, L, "BeQuiet", true);
+    [dataSlept(1, :), V, N, ~, G] = plm2slep_new(squeeze(dataPlmt(:, :, 1)), domain, L, "BeQuiet", true);
 
     parfor t = 2:length(time)
-        dataSlept(t, :) = plm2slep_new(squeeze(dataPlmt(t, :, :)), domain, L, "BeQuiet", true);
+        dataSlept(t, :) = plm2slep_new(squeeze(dataPlmt(:, :, t)), domain, L, "BeQuiet", true);
     end
 
     %% Saving and collecting output

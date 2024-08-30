@@ -1,6 +1,32 @@
-function [latLim, lonLim] = loaddefaultregionlimits(region)
+%% LOADDEFAULTREGIONLIMITS
+% Finds the longitude limits for a given region appropriate for plotting.
+%
+% Syntax
+%   [latLim, lonLim] = loaddefaultregionlimits(domain)
+%
+% Input arguments
+%   domain - The domain name
+%       The domain name should be the name of a function that returns the
+%       domain vertices.
+%
+% Output arguments
+%   latLim - The latitude limits
+%   lonLim - The longitude limits
+%
+% Example
+%   >>  [latLim, lonLim] = loaddefaultregionlimits('namerica')
+%   latLim = [10, 90]
+%   lonLim = [-170, -50]
+%
+% Last modified by
+%   2024/08/30, williameclee@arizona.edu (@williameclee)
 
-    switch region
+function [latLim, lonLim] = loaddefaultregionlimits(domain)
+    if isa(domain, 'GeoDomain')
+        domain = domain.Domain;
+    end
+
+    switch domain
         case 'africa'
             latLim = [-50, 50];
             lonLim = [-30, 60];

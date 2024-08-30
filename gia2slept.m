@@ -2,13 +2,13 @@
 % Computes the GIA correction time series projected onto the Slepian basis.
 %
 % Syntax
-%   [time, slept] = gia2slept(model, domain)
-%   [time, slept] = gia2slept(model, domain, L)
-%   [time, slept] = gia2slept(model, r, L, phi, theta, omega)
-%   [time, slept] = gia2slept(days, __)
-%   [time, slept] = gia2slept(time, __)
-%   [time, slept] = gia2slept(__, 'Name', Value)
-%   [time, slept, sleptU, sleptL, total] = gia2slept(__)
+%   [date, slept] = gia2slept(model, domain)
+%   [date, slept] = gia2slept(model, domain, L)
+%   [date, slept] = gia2slept(model, r, L, phi, theta, omega)
+%   [date, slept] = gia2slept(days, __)
+%   [date, slept] = gia2slept(time, __)
+%   [date, slept] = gia2slept(__, 'Name', Value)
+%   [date, slept, sleptU, sleptL, total] = gia2slept(__)
 %
 % Input arguments
 %   model - Name of the GIA model
@@ -65,19 +65,19 @@
 %   total - Total GIA correction
 %
 % Last modified by
-%   2024/08/20, williameclee@arizona.edu (@williameclee)
+%   2024/08/30, williameclee@arizona.edu (@williameclee)
 
 function varargout = gia2slept(varargin)
     %% Initialisation
     % Parse inputs
-    [time, model, domain, L, phi, theta, omega, beQuiet] = ...
+    [date, model, domain, L, phi, theta, omega, beQuiet] = ...
         parseinputs(varargin{:});
 
     %% Loading the model
     % Get the yearly trend
     if strcmp(model, 'mascon')
         slept = mascon2slept('gia', domain, L, ...
-            [time(1), time(end)] + [-1, 1], "BeQuiet", beQuiet);
+            [date(1), date(end)] + [-1, 1], "BeQuiet", beQuiet);
         [G, ~, ~, ~, N] = glmalpha_new(domain, L, "BeQuiet", beQuiet);
         hasBounds = false;
     else
@@ -87,46 +87,24 @@ function varargout = gia2slept(varargin)
             [], model, L, "BeQuiet", beQuiet);
         hasBounds = ~isnan(plmU) && ~isnan(plmL);
 
-        % plm(:, 3:4) = plm(:, 3:4) / sqrt(4 * pi); % TEST
         L = conddefval(L, max(plm(:, 1)));
 
         %% Computing the basis
-        if isa(domain, 'GeoDomain') || ismatrix(domain)
-            [falpha, ~, N, ~, G] = plm2slep_new( ...
-                plm, domain, L, "BeQuiet", beQuiet);
-
-            if hasBounds
-                falphaU = plm2slep_new( ...
-                    plmU, domain, L, "BeQuiet", beQuiet);
-                falphaL = plm2slep_new( ...
-                    plmL, domain, L, "BeQuiet", beQuiet);
-            end
-
-        else
-            [falpha, ~, N, ~, G] = plm2slep_new( ...
-                plm, domain, L, phi, theta, omega, "BeQuiet", beQuiet);
-
-            if hasBounds
-                falphaU = plm2slep_new(plmU, domain, L, ...
-                    phi, theta, omega, "BeQuiet", beQuiet);
-                falphaL = plm2slep_new(plmL, domain, L, ...
-                    phi, theta, omega, "BeQuiet", beQuiet);
-            end
-
-        end
+        [falpha, falphaU, falphaL, N, G] = findslepianbasis( ...
+            plm, domain, phi, theta, omega, L, hasBounds, beQuiet);
 
         %% Getting the trend
-        if isempty(time) || isscalar(time)
+        if isempty(date) || isscalar(date)
             % If time is scalar, interpret it as the day change
-            if isempty(time)
-                time = 365;
+            if isempty(date)
+                date = datetime;
                 deltaYear = 1;
             else
-                deltaYear = time / 365;
+                deltaYear = date / 365;
             end
 
         else
-            deltaYear = (time - time(1)) / 365;
+            deltaYear = years(date - date(1));
         end
 
         slept = deltaYear(:) * falpha(:)';
@@ -158,7 +136,7 @@ function varargout = gia2slept(varargin)
         sleptL = nan;
     end
 
-    varargout = {time, slept, sleptU, sleptL, total};
+    varargout = {date, slept, sleptU, sleptL, total};
 
     if nargout > 0
         return
@@ -211,8 +189,8 @@ function varargout = parseinputs(varargin)
     omega = conddefval(p.Results.omega, omegaD);
     beQuiet = uint8(double(p.Results.BeQuiet) * 2);
 
-    if isdatetime(time)
-        time = datenum(time); %#ok<DATNM>
+    if isnumeric(time)
+        time = datetime(time, 'ConvertFrom', 'datenum');
     end
 
     % Change the domain to a GeoDomain object if appropriate
@@ -226,6 +204,39 @@ function varargout = parseinputs(varargin)
     end
 
     varargout = {time, model, domain, L, phi, theta, omega, beQuiet};
+
+end
+
+function varargout = findslepianbasis(plm, domain, phi, theta, omega, ...
+    L, hasBounds, beQuiet)
+    falphaU = nan;
+    falphaL = nan;
+
+    if isa(domain, 'GeoDomain') || ismatrix(domain)
+        [falpha, ~, N, ~, G] = plm2slep_new( ...
+            plm, domain, L, "BeQuiet", beQuiet);
+
+        if hasBounds
+            falphaU = plm2slep_new( ...
+                plmU, domain, L, "BeQuiet", beQuiet);
+            falphaL = plm2slep_new( ...
+                plmL, domain, L, "BeQuiet", beQuiet);
+        end
+
+    else
+        [falpha, ~, N, ~, G] = plm2slep_new( ...
+            plm, domain, L, phi, theta, omega, "BeQuiet", beQuiet);
+
+        if hasBounds
+            falphaU = plm2slep_new(plmU, domain, L, ...
+                phi, theta, omega, "BeQuiet", beQuiet);
+            falphaL = plm2slep_new(plmL, domain, L, ...
+                phi, theta, omega, "BeQuiet", beQuiet);
+        end
+
+    end
+
+    varargout = {falpha, falphaU, falphaL, N, G};
 
 end
 
