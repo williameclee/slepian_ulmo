@@ -219,7 +219,8 @@ function varargout = slept2resid_new(varargin)
             GSpec2 = [];
             GSpec3 = [];
         end
-
+    else
+        phase = [];
     end
 
     %% Compute the fits
