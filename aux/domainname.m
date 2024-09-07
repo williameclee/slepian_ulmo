@@ -32,7 +32,7 @@ function domainName = domainname(varargin)
     addRequired(p, 'Domain', ...
         @(x) ischar(x) || isstring(x) || iscell(x));
     addOptional(p, 'Format', 'short', ...
-        @(x) (ischar(x) || isstring(x)) && ismember(x, {'abbrevation', 'short', 'long'}));
+        @(x) (ischar(x) || isstring(x)) && ismember(x, {'abbrevation', 'abbr', 'short', 'long'}));
     parse(p, varargin{:});
     domain = p.Results.Domain;
     format = char(p.Results.Format);

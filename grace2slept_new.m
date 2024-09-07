@@ -1,5 +1,5 @@
 %% GRACE2SLEPT
-% Takes GRACE/GRACE-FO gravimetry data created by GRACE2PLM and projects 
+% Takes GRACE/GRACE-FO gravimetry data created by GRACE2PLM and projects
 % this data into the requested Slepian basis.
 %
 % Syntax
@@ -39,6 +39,9 @@
 %   Deg1Correction, C20Correction, C30Correction - Wether you want to apply
 %       the degree 1, C20, or C30 corrections
 %       The default options are true.
+%   TimeRange - The time range of GRACE data
+%       A 2-by-1 datetime or timenum array specifying the starting and ending time of the GRACE data used.
+%       The default range uses all data available.
 %   ForceNew - Wether or not you want to force recomputation
 %       The default option is false.
 %   SaveData - Wether or not you want to save the output data
@@ -54,7 +57,7 @@
 %       the Slepian basis calibrated errors.
 %       The size is [nmonths x addmoff(Ldata)].
 %       For release RL06, the calibrated errors are not available.
-%   date - Time stamps in MATLAB datetime format
+%   date - Time stamps of the time series in DATETIME format
 %   domain - The domain
 %       If there was buffering, this will be a XY array of coordinates,
 %       which you can use with SPHAREA to get the Shannon number.

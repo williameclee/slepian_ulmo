@@ -62,6 +62,19 @@ function varargout = addanchors(varargin)
     lona = lon;
 
     if isempty(needsAnchor)
+
+        if nargout == 1
+
+            if isPoly
+                varargout = {p};
+            else
+                varargout = {[lon, lat]};
+            end
+
+        else
+            varargout = {lon, lat};
+        end
+
         return
     end
 

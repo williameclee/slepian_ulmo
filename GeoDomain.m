@@ -108,8 +108,7 @@ classdef GeoDomain
         function displayName = DisplayName(obj, varargin)
             p = inputParser;
             addOptional(p, 'Format', 'short', ...
-                @(x) (ischar(x) || isstring(x)) && ...
-                ismember(lower(x), {'short', 'long', 'abbrevation'}));
+                @(x) (ischar(x) || isstring(x)));
             parse(p, varargin{:});
             format = p.Results.Format;
 
@@ -123,9 +122,9 @@ classdef GeoDomain
             addOptional(p, 'LonOrigin', [], ...
                 @(x) isnumeric(x) && isscalar(x));
             addParameter(p, 'RotateBack', false, ...
-                @(x) islogical(x) || isnumeric(x));
+                @istruefalse);
             addParameter(p, 'Anchors', false, ...
-                @(x) islogical(x) || isnumeric(x));
+                @istruefalse);
             parse(p, varargin{:});
             lonOrigin = p.Results.LonOrigin;
             rotateBack = logical(p.Results.RotateBack);
@@ -139,7 +138,7 @@ classdef GeoDomain
             end
 
             try
-                [lonlat, lonc, latc] = feval(obj.Domain, "Upscale", obj.Upscale, ...
+                [lonlat, ~, ~] = feval(obj.Domain, "Upscale", obj.Upscale, ...
                     "Buffer", obj.Buffer, "Latlim", obj.Latlim, ...
                     "NearBy", obj.NearBy, "LonOrigin", lonOrigin, ...
                     "MoreBuffers", obj.MoreBuffers, "RotateBack", rotateBack, ...
@@ -158,10 +157,10 @@ classdef GeoDomain
 
             if nargout > 0
 
-                try
-                    varargout = {lonlat, lonc, latc};
-                catch
+                if nargout == 1
                     varargout = {lonlat};
+                else
+                    varargout = {lonlat(:, 1), lonlat(:, 2)};
                 end
 
                 return
@@ -213,8 +212,8 @@ function Inputs = parseinputs(varargin)
     addOptional(p, 'MoreBuffers', {}, ...
         @(x) iscell(x) || isempty(x) || strcmpi(x, 'default'));
     addOptional(p, 'NearBy', false, ...
-        @(x) (isnumeric(x) && x <= 1) || islogical(x));
-    addParameter(p, 'DefaultParams', false, @islogical);
+        @(x) (isnumeric(x) && x <= 1) || istruefalse(x));
+    addParameter(p, 'DefaultParams', false, @istruefalse);
     parse(p, varargin{:});
 
     Inputs = p.Results;

@@ -49,20 +49,32 @@
 function varargout = loadcbar(varargin)
     %% Initialisation
     % Parse inputs
-    [cLevels, cLim, cbarLabel, cmapName, FSettings, location] = ...
+    [cLevels, cLim, cbarLabel, cmapName, FSettings, location, useDark] = ...
         parseinputs(varargin{:});
 
     %% Compute the colour levels and centre
-    [~, cLevels] = loadcmap(cmapName, cLevels);
+    [cMap, cLevels] = loadcmap(cmapName, cLevels);
     cLevelsForPlot = coarseclevels(cLevels);
 
     %% Create and style the colourbar
     cbar = colorbar(location);
     cbar.Ticks = cLevelsForPlot;
+    
     clim(cLim)
 
     if ~isempty(cbarLabel)
         cbar.Label.String = cbarLabel;
+    end
+
+    if ~useDark
+        cbar.Color = 'k';
+    else
+        cbar.Color = cc('b2');
+        cbar.Label.Color = 'w';
+
+        cbar.TickLabels = cellfun(@(x) sprintf('\\color{white}%s', x), ...
+            cbar.TickLabels, 'UniformOutput', false);
+
     end
 
     if ~isempty(FSettings)
@@ -75,7 +87,7 @@ function varargout = loadcbar(varargin)
         return
     end
 
-    varargout = {cbar, cLevels};
+    varargout = {cbar, cLevels, cMap};
 
 end
 
@@ -88,6 +100,7 @@ function varargout = parseinputs(varargin)
     addOptional(p, 'Colormap', 'seismic', @(x) ischar(x) || isstring(x));
     addOptional(p, 'FSettings', [], @isstruct);
     addParameter(p, 'Location', 'eastoutside', @ischar);
+    addParameter(p, 'DarkMode', false, @(x) islogical(x) || isnumeric(x));
     parse(p, varargin{:});
 
     cLim = p.Results.cLim;
@@ -111,8 +124,9 @@ function varargout = parseinputs(varargin)
     cmapName = char(p.Results.Colormap);
     FSettings = p.Results.FSettings;
     location = p.Results.Location;
+    useDark = logical(p.Results.DarkMode);
 
-    varargout = {cLevels, cLim, cbarTitle, cmapName, FSettings, location};
+    varargout = {cLevels, cLim, cbarTitle, cmapName, FSettings, location, useDark};
 end
 
 function cLevelsC = coarseclevels(cLevels)

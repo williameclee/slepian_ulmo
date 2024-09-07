@@ -19,16 +19,16 @@
 %       - FsizeCaption: Font size for the caption
 %       - Fname: Font name
 %       - LwidthThin: Line width for thin lines
-%       The default value is [], which means that the default MATLAB 
+%       The default value is [], which means that the default MATLAB
 %       settings are used.
 %   latlim - Latitude limits
 %   lonlim - Longitude limits
 %   prjMethod - Projection method
 %       It should preferably be area-preserving.
-%       The default value is 'lambcyln' for most regions, and 'wagner4' 
+%       The default value is 'lambcyln' for most regions, and 'wagner4'
 %       for oceans.
 %   mlabelPos - Meridian label position
-%       The default value is 'south' for most regions, and 'north' for 
+%       The default value is 'south' for most regions, and 'north' for
 %       Antarctica.
 %
 % Output arguments
@@ -45,18 +45,18 @@
 %   Load the basemap for the world with custom limits
 %
 % Last modified by
-%   2024/08/13, williameclee@arizona.edu (@williameclee)
+%   2024/08/30, williameclee@arizona.edu (@williameclee)
 
 function varargout = loadbasemap(varargin)
     %% Initialisation
     % Get manually defined values
-    [domain, FSettings, latLimM, lonLimM, prjMethodM, mlabelPosM] = ...
+    [domain, FSettings, latLimM, lonLimM, prjMethodM, mlabelPosM, useDark] = ...
         parseinputs(varargin{:});
     % Fallback values
     prjMethod = 'lambcyln';
     mlabelPos = 'south';
     % Region-specific values
-    [latLim, lonLim] = loaddefaultregionlimits(domain);
+    [latLim, lonLim] = defaultlatlonlim(domain);
 
     switch domain
         case 'antarctica'
@@ -98,7 +98,7 @@ function varargout = loadbasemap(varargin)
     end
 
     if ~isempty(FSettings)
-        set(axm, 'LineWidth', FSettings.LwidthThin * 2, ...
+        set(axm, ...
             'FontSize', FSettings.FsizeCaption, ...
             'FontName', FSettings.Fname);
         set(axm, 'GridLineWidth', FSettings.LwidthThin);
@@ -109,6 +109,14 @@ function varargout = loadbasemap(varargin)
     catch
         set(axm, 'GridColor', 'k');
     end
+
+    if useDark
+        setm(gca, "FEdgeColor", cc('b2'))
+    else
+        setm(gca, "FEdgeColor", 'k')
+    end
+
+    setm(gca, 'FLineWidth', FSettings.LwidthThin * 2)
 
     tightmap
     set(gca, 'Color', 'none', 'XColor', 'none', 'YColor', 'none')
@@ -130,11 +138,13 @@ function varargout = parseinputs(varargin)
     addOptional(p, 'LatLim', [], ...
         @(x) (isnumeric(x) && length(x) == 2) || isempty(x));
     addOptional(p, 'LonLim', [], ...
-        @(x) (isnumeric(x) && length(x) == 2) || isempty(x));
+        @(x) (isnumeric(x) && length(x) <= 2) || isempty(x));
     addParameter(p, 'PrjMethod', [], ...
         @(x) ischar(x) || isstring(x) || isempty(x));
     addParameter(p, 'MlabelPos', [], ...
         @(x) ischar(x) || isnumeric(x) || isempty(x));
+    addParameter(p, 'DarkMode', false, ...
+        @(x) islogical(x) || isnumeric(x));
     parse(p, varargin{:});
 
     domain = p.Results.Domain;
@@ -150,6 +160,11 @@ function varargout = parseinputs(varargin)
     lonLim = p.Results.LonLim;
     prjMethod = p.Results.PrjMethod;
     mlabelPos = p.Results.MlabelPos;
+    useDark = logical(p.Results.DarkMode);
 
-    varargout = {domain, FSettings, latLim, lonLim, prjMethod, mlabelPos};
+    if isscalar(lonLim)
+        lonLim = lonLim + [-180, 180];
+    end
+
+    varargout = {domain, FSettings, latLim, lonLim, prjMethod, mlabelPos, useDark};
 end

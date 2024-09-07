@@ -1,8 +1,8 @@
-%% LOADDEFAULTREGIONLIMITS
-% Finds the longitude limits for a given region appropriate for plotting.
+%% DEFAULTLATLONLIM
+% Finds the longitude and latitude limits for a given region appropriate for plotting.
 %
 % Syntax
-%   [latLim, lonLim] = loaddefaultregionlimits(domain)
+%   [latLim, lonLim] = defaultlatlonlim(domain)
 %
 % Input arguments
 %   domain - The domain name
@@ -14,14 +14,14 @@
 %   lonLim - The longitude limits
 %
 % Example
-%   >>  [latLim, lonLim] = loaddefaultregionlimits('namerica')
+%   >>  [latLim, lonLim] = defaultlatlonlim('namerica')
 %   latLim = [10, 90]
 %   lonLim = [-170, -50]
 %
 % Last modified by
-%   2024/08/30, williameclee@arizona.edu (@williameclee)
+%   2024/09/06, williameclee@arizona.edu (@williameclee)
 
-function [latLim, lonLim] = loaddefaultregionlimits(domain)
+function [latLim, lonLim] = defaultlatlonlim(domain)
     if isa(domain, 'GeoDomain')
         domain = domain.Domain;
     end

@@ -109,6 +109,7 @@ function varargout = slep2plm_new(varargin)
     % and stick these coefficients in at the right places
     plm(2 * size(plm, 1) + ronm(1:(L + 1) ^ 2)) = ...
         G(:, 1:truncation) * falpha(1:truncation);
+    % plm = coef2lmcosi(G(:, 1:truncation) * falpha(1:truncation));
 
     %% Collecting output
     varargout = {plm, V, N, MTAP, truncation};

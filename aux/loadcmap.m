@@ -58,15 +58,27 @@ function varargout = loadcmap(varargin)
 
     %% Load the colourmap
     try
-        cmap = kcmap(cmapName, cLevels);
+        cmap = ccmap(cmapName, cLevels);
     catch
-        cmap = jet(length(cLevels));
-        fprintf('The colourmap %s is not available. \n', cmapName);
-        fprintf('Consider getting better colourmaps at: \n%s\n', ...
-        'https://github.com/williameclee/MatlabColourmapGenerator.git');
+
+        try
+            cmap = kcmap(cmapName, cLevels);
+        catch
+            cmap = jet(length(cLevels));
+            fprintf('The colourmap %s is not available. \n', cmapName);
+            fprintf('Consider getting better colourmaps at: \n%s\n', ...
+            'https://github.com/williameclee/MatlabColourmapGenerator.git');
+        end
+
     end
 
+    cmap = max(cmap, 1e-3);
     colormap(cmap)
+
+    try
+        clim(cLim)
+    catch
+    end
 
     if nargout == 0
         clear varargout
