@@ -44,8 +44,8 @@ A new class is introduced as an interface to geographic domains:
 ### Projection of other fields to Slepian functions
 The CSR GRACE mascon data (all components), various GIA models, and the sea-level fingerprints (all components) are natively supported to be projected to Slepian functions. The functions are:
 
-- `gia2plmt`: Fetch the the geoid deformation due to GIA projected to SH coefficients.
-- `gia2slept`: Fetch the geoid deformation due to GIA projected to Slepian coefficients. This and the above function replace `correct4gia` from slepian_delta.
+- `gia2plmt`/`giaz2plmt`: Fetch the the geoid deformation/vertical displacement due to GIA projected to SH coefficients.
+- `gia2slept`/`giaz2slept`: Fetch the geoid deformation/vertical displacement due to GIA projected to Slepian coefficients. This and the above function replace `correct4gia` from slepian_delta.
 - `grace2trend`: Compute the GRACE mass trend in a given domain.
 - `mascon2plmt`: Fetch the CSR GRACE mascon data projected to Slepian coefficients.
 - `mascon2slept`: Fetch the CSR GRACE mascon data projected to Slepian coefficients.
@@ -96,4 +96,4 @@ Some examples can also be run directly from the examples directory.
 
 ---
 Last modified by:
-- [En-Chi Lee (@williameclee)](https://github.com/williameclee), 2024/08/30
+- [En-Chi Lee (@williameclee)](https://github.com/williameclee), 2024/09/12

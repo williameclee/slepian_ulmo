@@ -20,7 +20,10 @@
 % Input arguments
 %   Plm - Standard-type real spherical harmonic expansion coefficients
 %   r - Radius of the concentration region in degrees
-%       The default value is 30 degrees
+%       Alternatively, phi, theta and omega can also be specified following 
+%       r.
+%       The default value is 30 degrees.
+%       Format: scalar or 1 x 4 vector.
 %   domain - Geographic domain or a latitude-longitude pair
 %       - A geographic domain (GeoDomain object).
 %       - A string of the domain name.
@@ -59,7 +62,7 @@
 %   PTOSLEP, GLMALPHA, GLMALPHAPTO, SLEP2PLM
 %
 % Last modified by
-%   2024/08/13, williameclee@arizona.edu (@williameclee)
+%   2024/09/12, williameclee@arizona.edu (@williameclee)
 %   2024/07/12, williameclee@arizona.edu (@williameclee)
 %   2023/09/26, fjsimons@alum.mit.edu (@fjsimons)
 %   2013/04/24, charig@princeton.edu (@charig)
@@ -210,7 +213,17 @@ function varargout = parseinputs(varargin)
     beQuiet = logical(p.Results.BeQuiet);
     GVN = p.Results.GVN;
 
-    if ischar(domain) || isstring(domain) && exist(domain, "file")
+    if isnumeric(domain) && isvector(domain)
+
+        if length(domain) ~= 4
+            error('If domain is a vector, it must have 4 elements: [R, phi, theta, omega]')
+        end
+
+        phi = domain(2);
+        theta = domain(3);
+        omega = domain(4);
+        domain = domain(1);
+    elseif ischar(domain) || isstring(domain) && exist(domain, "file")
         domain = GeoDomain(domain, "Upscale", upscale, moreRegionSpecs{:});
     elseif iscell(domain) && length(domain) == 2
         domain = GeoDomain(domain{1}, ...

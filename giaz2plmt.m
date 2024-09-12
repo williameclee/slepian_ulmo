@@ -3,14 +3,14 @@
 % to the spheircal harmonic format.
 %
 % Syntax
-%   Plm = gia2plmt(model, L)
+%   plm = gia2plmt(model, L)
 %		Returns the GIA vertical displacement in one year, truncated to 
 %       degree L.
-%   Plm = gia2plmt(years, model, L)
+%   plm = gia2plmt(years, __)
 %		Returns the GIA vertical displacement in the given number of years.
-%   Plmt = gia2plmt(time, model, L)
+%   plmt = gia2plmt(time, __)
 %		Returns the GIA vertical displacements at the given dates.
-%   Plmt = gia2plmt(__, 'Name', Value)
+%   plmt = gia2plmt(__, 'Name', Value)
 %
 % Input arguments
 %   model - Name of the GIA model
@@ -35,26 +35,26 @@
 %       Format: logical scalar.
 %
 % Output arguments
-%   Plm - GIA change in the given duration in spherical harmonic format
+%   plm - GIA change in the given duration in spherical harmonic format
 %       Format: addmup(L) x 4 double array.
-%   Plmt - GIA change at the given dates in spherical harmonic format
+%   plmt - GIA change at the given dates in spherical harmonic format
 %       Format: addmup(L) x 4 x ndates double array.
 %
 % See also
-%   GIA2PLMT
+%   GIA2PLMT, GIAZ2SLEPT
 %
 % Data source
 %   Steffen, H. (2021). Surface Deformations from Glacial Isostatic
 %       Adjustment Models with Laterally Homogeneous, Compressible Earth
-%       Structure (1.0) [Data set]. Zenodo. doi: 10.5281/zenodo.5560862.
+%       Structure (1.0) [Dataset]. Zenodo. doi: 10.5281/zenodo.5560862.
 %
 % Last modified by
-%   2024/09/11, williameclee@arizona.edu (@williameclee)
+%   2024/09/12, williameclee@arizona.edu (@williameclee)
 
 function wPlmt = giaz2plmt(varargin)
     %% Initialisation
     % Parse the inputs
-    [model, L, deltaYear, beQuiet, makePlot] = parseinputs(varargin{:});
+    [model, L, dYear, beQuiet, makePlot] = parseinputs(varargin{:});
 
     % Loading the model
     [wXY, ~, ~] = finddata(model);
@@ -62,10 +62,10 @@ function wPlmt = giaz2plmt(varargin)
     %% Converting the model
     wPlmt = xyz2plm_new(wXY, L, "BeQuiet", beQuiet);
 
-    if isscalar(deltaYear)
-        wPlmt(:, 3:4) = deltaYear .* wPlmt(:, 3:4);
+    if isscalar(dYear)
+        wPlmt(:, 3:4) = dYear .* wPlmt(:, 3:4);
     else
-        wPlmt = plm2plmt(wPlmt, deltaYear);
+        wPlmt = plm2plmt(wPlmt, dYear);
     end
 
     %% Collecting and displaying outputs
@@ -73,7 +73,7 @@ function wPlmt = giaz2plmt(varargin)
         return
     end
 
-    plotdispmap(wPlmt, deltaYear, model)
+    plotdispmap(wPlmt, dYear, model)
 end
 
 %% Subfunctions
@@ -108,15 +108,15 @@ function varargout = parseinputs(varargin)
 
     % Format the time into change in years
     if isempty(time)
-        deltaYear = 1;
+        dYear = 1;
     elseif isscalar(time) && isnumeric(time)
-        deltaYear = time;
+        dYear = time;
     elseif isvector(time) && isnumeric(time)
-        deltaYear = (time - time(1)) / days(years(1));
+        dYear = (time - time(1)) / days(years(1));
     elseif isvector(time) && isdatetime(time)
-        deltaYear = years(time - time(1));
+        dYear = years(time - time(1));
     elseif isduration(time)
-        deltaYear = years(time);
+        dYear = years(time);
     end
 
     % Format the model name
@@ -136,7 +136,7 @@ function varargout = parseinputs(varargin)
 
     end
 
-    varargout = {model, L, deltaYear, beQuiet, makePlot};
+    varargout = {model, L, dYear, beQuiet, makePlot};
 
 end
 
@@ -184,42 +184,46 @@ function [wXY, lon, lat] = finddata(model)
     wXY = flip(z');
 end
 
-function plmt = plm2plmt(plm, deltaYear)
+function plmt = plm2plmt(plm, multplicationFactor)
     % Put the time dimension in the third dimension
-    tShape = [1, 1, length(deltaYear)];
-    deltaYear = reshape(deltaYear, tShape);
+    tShape = [1, 1, length(multplicationFactor)];
+    multplicationFactor = reshape(multplicationFactor, tShape);
 
     % Preallocate the output
-    plmt = zeros([size(plm), length(deltaYear)]);
+    plmt = zeros([size(plm), length(multplicationFactor)]);
     % Copy the degree and order
     plmt(:, 1:2, :) = repmat(plm(:, 1:2), tShape);
     % Multiply the coefficients by the year change
-    plmt(:, 3:4, :) = deltaYear .* plm(:, 3:4);
+    plmt(:, 3:4, :) = multplicationFactor .* plm(:, 3:4);
 end
 
-function plotdispmap(wPlmt, deltaYear, model)
+function plotdispmap(wPlmt, dYear, model)
     % Get the change rate
-    if ~isscalar(deltaYear)
+    if ~isscalar(dYear)
         wPlmt = squeeze(wPlmt(:, :, end));
-        deltaYear = deltaYear(end);
+        dYear = dYear(end);
     end
 
-    [wXY, lon, lat] = plm2xyz(wPlmt, "BeQuiet", true);
+    meshSize = 1;
+    [wXY, lon, lat] = plm2xyz(wPlmt, meshSize, "BeQuiet", true);
 
     % Get the coastlines
     coastLonlat = gshhscoastline('c', 'LonOrigin', 180, "BeQuiet", true);
 
+    % Get the colour scheme and limits
     [cLim, cStep] = optimalclim(wXY, 'Percentile', 1);
     wXY = max(min(wXY, cLim(2)), cLim(1));
 
-    figure(999)
     % Protect underscore in model name
     model = strrep(model, '_', '\_');
-    set(gcf, "NumberTitle", "off", "Name", ...
-        sprintf('GIA change in %.1f year(s) (%s)', deltaYear, upper(mfilename)))
-    clf
+    
+    figTitle = sprintf('GIA vertical displacement in %s year(s)', num2str(dYear));
 
-    title(sprintf('Model: %s', model))
+    figure(999)
+    clf
+    set(gcf, "NumberTitle", "off", "Name", ...
+        sprintf('%s (%s)', figTitle, upper(mfilename)))
+    title([figTitle, newline, sprintf('Model: %s', model)])
 
     [~, cLevels] = loadcbar(cLim, cStep, ...
         "Title", 'Vertical displacement [mm]', ...
