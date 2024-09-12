@@ -208,7 +208,6 @@ function varargout = parseinputs(varargin)
     saveData = logical(p.Results.SaveData);
     beQuiet = logical(p.Results.BeQuiet);
 
-    % if iscel
     if ischar(domain) || isstring(domain) && exist(domain, "file")
         domain = GeoDomain(domain, moreRegionSpecs{:});
     elseif iscell(domain) && length(domain) == 2
@@ -216,6 +215,12 @@ function varargout = parseinputs(varargin)
             domain{1}, "Buffer", domain{2}, moreRegionSpecs{:});
     elseif iscell(domain)
         domain = GeoDomain(domain{:}, moreRegionSpecs{:});
+    end
+
+    if isnumeric(domain) && length(domain) == 3
+        phi = domain(2);
+        theta = domain(3);
+        domain = domain(1);
     end
 
     varargout = ...

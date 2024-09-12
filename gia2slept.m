@@ -100,7 +100,7 @@ function varargout = gia2slept(varargin)
                 date = datetime;
                 deltaYear = 1;
             else
-                deltaYear = date / 365;
+                deltaYear = date / days(years(1));
             end
 
         else

@@ -6,10 +6,10 @@
 % Syntax
 %   plm2slep(demoId)
 %       Runs a demo with the specified name.
-%   [falpha, V, N] = plm2slep(lmcosi, r, L, phi, theta, omega)
+%   [falpha, V, N] = plm2slep(Plm, r, L, phi, theta, omega)
 %       Finds the expansion coefficients of the function into the Slepian
 %       basis of a polar cap.
-%   [falpha, V, N] = plm2slep(lmcosi, domain, L)
+%   [falpha, V, N] = plm2slep(Plm, domain, L)
 %       Finds the expansion coefficients of the function into the Slepian
 %       basis of a geographic domain.
 %   [falpha, V, N] = plm2slep(__, nosort, truncation)
@@ -18,7 +18,7 @@
 %   [__, MTAP, G] = plm2slep(__)
 %
 % Input arguments
-%   lmcosi - Standard-type real spherical harmonic expansion coefficients
+%   Plm - Standard-type real spherical harmonic expansion coefficients
 %   r - Radius of the concentration region in degrees
 %       The default value is 30 degrees
 %   domain - Geographic domain or a latitude-longitude pair

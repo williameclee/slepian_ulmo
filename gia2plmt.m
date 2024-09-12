@@ -116,7 +116,7 @@ function varargout = gia2plmt(varargin)
         if isempty(time)
             deltaYear = 1;
         else
-            deltaYear = time / 365;
+            deltaYear = time / days(years(1));
         end
 
         GIAt = lmcosiM;
@@ -132,7 +132,7 @@ function varargout = gia2plmt(varargin)
     else
         % Otherwise, interpret it as a vector of dates (in datenum format)
         % Reference the date string to the first date
-        deltaYear = (time - time(1)) / 365;
+        deltaYear = (time - time(1)) / days(years(1));
 
         GIAt = plm2plmt(lmcosiM, deltaYear);
 
@@ -178,7 +178,7 @@ function varargout = parseinputs(varargin)
 
     p = inputParser;
     addOptional(p, 'Time', [], ...
-        @(x) isnumeric(x) || isdatetime(x) || isempty(x));
+        @(x) isnumeric(x) || isdatetime(x) || isempty(x) || idsuration(x));
     addOptional(p, 'Model', modelD, ...
         @(x) ischar(x) || (iscell(x) && length(x) == 3) || isempty(x));
     addOptional(p, 'L', [], ...

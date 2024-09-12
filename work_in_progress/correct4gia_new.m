@@ -124,7 +124,7 @@ function varargout = correct4gia_new(varargin)
     %% Main
     % Reference the date string to the first date
     if ~isscalar(time)
-        deltaYear = (time - time(1)) / 365;
+        deltaYear = (time - time(1)) / days(years(1));
     else
         deltaYear = 1;
     end
