@@ -69,8 +69,6 @@
 
 function varargout = plm2slep_new(varargin)
     %% Initialisation
-    % Add path to the auxiliary functions
-    addpath(fullfile(fileparts(mfilename('fullpath')), 'demos'));
     % Demos
     if ischar(varargin{1}) || isstring(varargin{1})
         demoId = varargin{1};

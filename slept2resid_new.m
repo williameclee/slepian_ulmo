@@ -16,10 +16,10 @@
 % Slepian functions up to the Shannon number for this localisation.
 %
 % Syntax
-%   [sleptSig, sleptRes, ftests] = slept2resif(slept, dates, fitwhat, givenerrors, ...
-%       specialterms, CC, domain)
-%   [__, extravalues, total, alphavarall, totalparams, totalparamerrors, totalfit, ...
-%   eigfunInt, alphavar] = slept2resi(__)
+%   [sleptSig, sleptRes, ftests] = slept2resid(slept, dates, fitwhat, ...
+%       givenerrors, specialterms, CC, domain)
+%   [__, extravalues, total, alphavarall, totalparams, ...
+%       totalparamerrors, totalfit, eigfunInt, alphavar] = slept2resid(__)
 %
 % Input arguments
 %   sleptCoeffs - The time series of Slepian coefficients
@@ -101,17 +101,15 @@
 %       integrals.
 %
 % Last modified by
-%   2024/08/30, williameclee@arizona.edu (@williameclee)
+%   2024/09/25, williameclee@arizona.edu (@williameclee)
 %   2024/06/07, williameclee@arizona.edu (@williameclee)
 %   2012/06/26, charig@princeton.edu (@harig00)
 
 function varargout = slept2resid_new(varargin)
     %% Initialisation
-    % Add path to the auxiliary function(s)
-    addpath(fullfile(fileparts(mfilename('fullpath')), 'aux'));
     % Parse inputs
     [slept, date, fitwhat, givenerrors, spTerms, domain, truncation, ...
-         unit, beQuiet] = parseinputs(varargin{:});
+         unit, beQuiet, doNormalisation, transFlag] = parseinputs(varargin{:});
 
     % Format dates
     nMonth = length(date);
@@ -219,6 +217,7 @@ function varargout = slept2resid_new(varargin)
             GSpec2 = [];
             GSpec3 = [];
         end
+
     else
         phase = [];
     end
@@ -238,7 +237,17 @@ function varargout = slept2resid_new(varargin)
     end
 
     %% Returning requested output
-    varargout = {sleptSig, sleptRes, ftests, extravalues};
+    if transFlag
+        sleptSigOut = sleptSig';
+        sleptResOut = sleptRes';
+        extravaluesOut = extravalues';
+    else
+        sleptSigOut = sleptSig;
+        sleptResOut = sleptRes;
+        extravaluesOut = extravalues;
+    end
+
+    varargout = {sleptSigOut, sleptResOut, ftests, extravaluesOut};
 
     % Total combined fitting
 
@@ -297,7 +306,10 @@ function varargout = slept2resid_new(varargin)
     % Since Int should have units of (fn * m^2), need to go from fractional
     % sphere area to real area.  If the fn is surface density, this output is
     % in kilograms.  Then change the units from kg to Gt in METRIC tons
-    eigfunINT = eigfunINT * 4 * pi * 6370000 ^ 2/1e12;
+    if doNormalisation
+        eigfunINT = eigfunINT * 4 * pi * 6370000 ^ 2/1e12;
+    end
+
     functionintegrals = eigfunINT;
 
     % Now multiply by the appropriate slepcoffs to get the months
@@ -338,7 +350,7 @@ function varargout = slept2resid_new(varargin)
 
     % Collect the expanded output
     varargout = ...
-        {sleptSig, sleptRes, ftests, extravalues, ...
+        {sleptSigOut, sleptResOut, ftests, extravaluesOut, ...
          total, alphavarall, totalparams, totalparamerrors, totalfit, ...
          functionintegrals, alphavar};
 
@@ -369,6 +381,7 @@ function varargout = parseinputs(varargin)
     addParameter(p, 'Unit', 'original', @(x) ischar(x) ...
         && ismember(x, {'original', 'year'}));
     addParameter(p, 'BeQuiet', false, @(x) islogical(x) || isnumeric(x));
+    addParameter(p, 'Normalisation', true, @istruefalse)
     parse(p, varargin{:});
     slept = conddefval(p.Results.slept, sleptD);
     date = conddefval(p.Results.date, dateD);
@@ -379,13 +392,27 @@ function varargout = parseinputs(varargin)
     N = conddefval(p.Results.N, ND);
     moreDomainSpecs = p.Results.MoreDomainSpecs;
     unit = p.Results.Unit;
-    beQuiet = p.Results.BeQuiet;
+    beQuiet = logical(p.Results.BeQuiet);
+    doNormalisation = logical(p.Results.Normalisation);
 
     if isdatetime(date)
         date = datenum(date); %#ok<DATNM>
     end
 
     date = date(:)';
+
+    transFlag = false;
+
+    if size(slept, 1) ~= length(date)
+
+        if size(slept, 2) == length(date)
+            slept = slept';
+            transFlag = true;
+        else
+            error('SLEPT and DATE must have the same length')
+        end
+
+    end
 
     % Change the domain to a GeoDomain object if appropriate
     if ischar(domain) || isstring(domain) && exist(domain, "file")
@@ -404,5 +431,5 @@ function varargout = parseinputs(varargin)
         givenerrors = conddefval(givenerrors, ones(size(slept)));
     end
 
-    varargout = {slept, date, fitwhat, givenerrors, specialterms, domain, N, unit, beQuiet};
+    varargout = {slept, date, fitwhat, givenerrors, specialterms, domain, N, unit, beQuiet, doNormalisation, transFlag};
 end

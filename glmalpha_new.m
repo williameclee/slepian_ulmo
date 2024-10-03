@@ -117,10 +117,6 @@
 
 function varargout = glmalpha_new(varargin)
     %% Initialisation & demos
-    % Add path to the auxiliary functions
-    addpath(fullfile(fileparts(mfilename('fullpath')), 'aux'));
-    addpath(fullfile(fileparts(mfilename('fullpath')), 'demos'));
-
     % demos
     if (ischar(varargin{1}) || isstring(varargin{1})) && ...
             contains(varargin{1}, 'demo')
