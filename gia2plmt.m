@@ -23,6 +23,7 @@
 %           scheme. For example, 'Steffen_anu-ice_i72'.
 %           This family of models can also be specified as a cell array,
 %           e.g. {'Steffen', 'ice6g', 'vm5a'}.
+%       - 'LM17.3': A model based on the data from the LM17.3 dataset.
 %       - 'Paulson07': A model based on the ICE-5G ice load model of
 %           Peltier (2004). Suitable for both Antarctica and Greenland. As
 %           corrected by Geruo A and J. Wahr.
@@ -79,9 +80,14 @@
 %       International 190, 1464-1482. doi:10.1111/j.1365-246X.2012.05557.x
 %   Steffen, H. (2021). Surface Deformations from Glacial Isostatic
 %       Adjustment Models with Laterally Homogeneous, Compressible Earth
-%       Structure (1.0) [Data set]. Zenodo. doi: 10.5281/zenodo.5560862.
+%       Structure (1.0) [dataset]. Zenodo. doi: 10.5281/zenodo.5560862.
+%   Steffen, H., Li, T., Wu, P., Gowan, E. J., Ivins, E., Lecavalier, B., 
+%       Tarasov, L., Whitehouse, P. L. (2021). LM17.3 - a global vertical 
+%       land motion model of glacial isostatic adjustment [dataset]. 
+%       PANGAEA, doi: 10.1594/PANGAEA.932462
 %
 % Last modified by
+%   2024/10/03, williameclee@arizona.edu (@williameclee)
 %   2024/08/20, williameclee@arizona.edu (@williameclee)
 
 function varargout = gia2plmt(varargin)
@@ -230,6 +236,13 @@ function inputPath = finddatafile(model)
         inputFolder = fullfile(inputFolder, model(1:6));
     elseif strncmp(model, 'Steffen', 7)
         inputFolder = fullfile(inputFolder, 'SteffenGrids');
+    elseif strcmp(model, 'LM17.3')
+        inputFolder = fullfile(inputFolder, 'LM17.3');
+
+        if exist(inputFolder, 'dir') ~= 7
+            mkdir(inputFolder)
+        end
+
     else
         inputFolder = fullfile(inputFolder, model);
     end
@@ -238,8 +251,20 @@ function inputPath = finddatafile(model)
     inputPath = fullfile(inputFolder, sprintf('%s_SD.mat', model));
 
     if exist(inputPath, 'file') ~= 2
-        error('Model %s not found\nIt should be kept at %s', ...
-            upper(model), inputPath);
+
+        if strcmp(model, 'LM17.3')
+            if exist(fullfile(inputFolder, '/Users/williameclee/slepian/data/GIA/LM17.3/LM17.3_0.5x0.5_geoid_globe.txt'), 'file')
+                lm17_Sd(inputFolder, inputPath);
+            else
+                error('Model %s not found\nPlease download it from %s', ...
+                    upper(model), 'https://sites.google.com/view/holgersteffenlm/startseite/data');
+            end
+
+        else
+            error('Model %s not found\nIt should be kept at %s', ...
+                upper(model), inputPath);
+        end
+
     end
 
 end

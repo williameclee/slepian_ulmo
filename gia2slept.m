@@ -76,8 +76,24 @@ function varargout = gia2slept(varargin)
     %% Loading the model
     % Get the yearly trend
     if strcmp(model, 'mascon')
-        slept = mascon2slept('gia', domain, L, ...
-            [date(1), date(end)] + [-1, 1], "BeQuiet", beQuiet);
+
+        if isempty(date) || isscalar(date)
+            [slept, dates] = mascon2slept('gia', domain, L, ...
+                [], "BeQuiet", beQuiet);
+            slept = slept(end, :) - slept(1, :);
+            deltaYear = years(dates(end) - dates(1));
+            slept = slept / deltaYear;
+
+            if ~isempty(date)
+                deltaYear = date;
+                slept = slept * deltaYear;
+            end
+
+        else
+            slept = mascon2slept('gia', domain, L, ...
+                [date(1), date(end)] + [-1, 1], "BeQuiet", beQuiet);
+        end
+
         [G, ~, ~, ~, N] = glmalpha_new(domain, L, "BeQuiet", beQuiet);
         hasBounds = false;
     else
@@ -208,7 +224,7 @@ function varargout = parseinputs(varargin)
 end
 
 function varargout = findslepianbasis(plm, domain, phi, theta, omega, ...
-    L, hasBounds, beQuiet)
+        L, hasBounds, beQuiet)
     falphaU = nan;
     falphaL = nan;
 

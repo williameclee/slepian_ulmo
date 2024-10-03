@@ -208,7 +208,8 @@ function plotdispmap(model, plm, slept, dYear, domain, L)
     coastLonlat = gshhscoastline('c', 'LonOrigin', 180, "BeQuiet", true);
     domainLonlat = domain.Lonlat('LonOrigin', 180);
 
-    [cLim, cStep] = optimalclim((mesh + meshLcl * 9) / 10, 'Percentile', 1);
+    [cLim, cStep] = optimalclim(meshLcl, 'Percentile', 1);
+    % [cLim, cStep] = optimalclim((mesh + meshLcl * 9) / 10, 'Percentile', 1);
     mesh = max(min(mesh, cLim(2)), cLim(1));
     meshLcl = max(min(meshLcl, cLim(2)), cLim(1));
 

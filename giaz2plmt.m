@@ -1,10 +1,10 @@
 %% GIAZ2PLMT
-% Reads the vertical displacement provided by a GIA model and converts it 
+% Reads the vertical displacement provided by a GIA model and converts it
 % to the spheircal harmonic format.
 %
 % Syntax
 %   plm = gia2plmt(model, L)
-%		Returns the GIA vertical displacement in one year, truncated to 
+%		Returns the GIA vertical displacement in one year, truncated to
 %       degree L.
 %   plm = gia2plmt(years, __)
 %		Returns the GIA vertical displacement in the given number of years.
@@ -14,8 +14,9 @@
 %
 % Input arguments
 %   model - Name of the GIA model
-%       - Name of a model computed by H. Steffen. It can be specified as, 
-%           e.g. 'Steffen_ice6g_vm5a' or {'Steffen', 'ice6g', 'vm5a'}. 
+%       - Name of a model computed by H. Steffen. It can be specified as,
+%           e.g. 'Steffen_ice6g_vm5a' or {'Steffen', 'ice6g', 'vm5a'}.
+%       - LM17.3 is also supported.
 %       Other models are specified in the same way.
 %       - The input can also be the path to the model file.
 %		The default model is 'Steffen_ice6g_vm5a'.
@@ -47,8 +48,13 @@
 %   Steffen, H. (2021). Surface Deformations from Glacial Isostatic
 %       Adjustment Models with Laterally Homogeneous, Compressible Earth
 %       Structure (1.0) [Dataset]. Zenodo. doi: 10.5281/zenodo.5560862.
+%   Steffen, H., Li, T., Wu, P., Gowan, E. J., Ivins, E., Lecavalier, B.,
+%       Tarasov, L., Whitehouse, P. L. (2021). LM17.3 - a global vertical
+%       land motion model of glacial isostatic adjustment [dataset].
+%       PANGAEA, doi: 10.1594/PANGAEA.932462
 %
 % Last modified by
+%   2024/10/03, williameclee@arizona.edu (@williameclee)
 %   2024/09/12, williameclee@arizona.edu (@williameclee)
 
 function wPlmt = giaz2plmt(varargin)
@@ -57,11 +63,17 @@ function wPlmt = giaz2plmt(varargin)
     [model, L, dYear, beQuiet, makePlot] = parseinputs(varargin{:});
 
     % Loading the model
-    [wXY, ~, ~] = finddata(model);
+    if contains(model, 'Steffen')
+        [wXY, ~, ~] = findsteffendata(model);
+        wPlmt = xyz2plm_new(wXY, L, "BeQuiet", beQuiet);
+    elseif strcmp(model, 'LM17.3')
+        wPlmt = lm17_vup;
+        wPlmt = wPlmt(wPlmt(:, 1) <= L, :);
+    else
+        error('Unrecognised model name %s', upper(model));
+    end
 
     %% Converting the model
-    wPlmt = xyz2plm_new(wXY, L, "BeQuiet", beQuiet);
-
     if isscalar(dYear)
         wPlmt(:, 3:4) = dYear .* wPlmt(:, 3:4);
     else
@@ -140,7 +152,7 @@ function varargout = parseinputs(varargin)
 
 end
 
-function [wXY, lon, lat] = finddata(model)
+function [wXY, lon, lat] = findsteffendata(model)
     %% Finding the model data
     if exist(model, 'file') == 2
         % If the model is a path, load it directly
@@ -216,7 +228,7 @@ function plotdispmap(wPlmt, dYear, model)
 
     % Protect underscore in model name
     model = strrep(model, '_', '\_');
-    
+
     figTitle = sprintf('GIA vertical displacement in %s year(s)', num2str(dYear));
 
     figure(999)
