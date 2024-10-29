@@ -56,20 +56,20 @@ function varargout = slf2plmt(varargin)
     %% Computing or loading data
     if exist(outputPath, 'file') && ~forceNew
         load(outputPath, 'time', 'Ldata', ...
-            'plmLandload', 'plmRsl', 'plmGeoid', 'plmBedrock');
+            'plmLandload', 'plmRsl', 'plmGeoid', 'plmSd', 'plmBedrock');
 
         if ~beQuiet
             fprintf('%s loaded %s\n', upper(mfilename), outputPath);
         end
 
     else
-        [plmLandload, plmRsl, plmGeoid, plmBedrock, Ldata] = ...
+        [plmLandload, plmRsl, plmGeoid, plmSd, plmBedrock, Ldata] = ...
             readdata(inputPaths, time);
 
         % Save data before removing data files outside the timerange
         if saveData
             save(outputPath, 'time', 'Ldata', 'plmLandload', ...
-                'plmRsl', 'plmGeoid', 'plmBedrock', '-v7.3');
+                'plmRsl', 'plmGeoid', 'plmSd', 'plmBedrock', '-v7.3');
 
             if ~beQuiet
                 fprintf('%s saved %s\n', upper(mfilename), outputPath);
@@ -85,8 +85,8 @@ function varargout = slf2plmt(varargin)
         % Do not truncate
     elseif L < Ldata
         % Truncate if the requested degree is lower than the data files
-        [plmLandload, plmRsl, plmGeoid, plmBedrock] = ...
-            truncatedegree(L, plmLandload, plmRsl, plmGeoid, plmBedrock);
+        [plmLandload, plmRsl, plmGeoid, plmSd, plmBedrock] = ...
+            truncatedegree(L, plmLandload, plmRsl, plmGeoid, plmSd, plmBedrock);
     elseif L > Ldata
         % Warn if the requested degree is higher than the data files
         warning('The maximum degree of the data files (%i) is lower than the requested degree (%i)', ...
@@ -94,19 +94,19 @@ function varargout = slf2plmt(varargin)
     end
 
     % Remove data files outside the timerange
-    [time, plmLandload, plmRsl, plmGeoid, plmBedrock] = ...
+    [time, plmLandload, plmRsl, plmGeoid, plmSd, plmBedrock] = ...
         truncatetimerange(time, timerange, ...
-        plmLandload, plmRsl, plmGeoid, plmBedrock);
+        plmLandload, plmRsl, plmGeoid, plmSd, plmBedrock);
 
     %% Collecting and displaying outputs
-    varargout = {time, plmLandload, plmRsl, plmGeoid, plmBedrock};
+    varargout = {time, plmLandload, plmRsl, plmGeoid, plmSd, plmBedrock};
 
     if nargout > 0
         return
     end
 
     varargout = {};
-    plotslfmaps(plmLandload, plmRsl, plmGeoid, plmBedrock)
+    plotslfmaps(plmLandload, plmRsl, plmGeoid, plmSd, plmBedrock)
 
 end
 
@@ -235,15 +235,17 @@ function varargout = readdata(inputPaths, time)
     plmLandload = nan([addmup(double(Ldata)), 4, length(time)]);
     plmRsl = nan(size(plmLandload));
     plmGeoid = nan(size(plmLandload));
+    plmSd = nan(size(plmLandload));
     plmBedrock = nan(size(plmLandload));
 
     parfor iTime = 1:length(time)
         [plmLandload(:, :, iTime), plmRsl(:, :, iTime), ...
              plmGeoid(:, :, iTime), plmBedrock(:, :, iTime)] = ...
             slf2plm(inputPaths{iTime});
+        plmSd(:, :, iTime) = plm2pot(plmGeoid(:, :, iTime), [], [], [], 4);
     end
 
-    varargout = {plmLandload, plmRsl, plmGeoid, plmBedrock, Ldata};
+    varargout = {plmLandload, plmRsl, plmGeoid, plmSd, plmBedrock, Ldata};
 
 end
 

@@ -50,7 +50,7 @@ function varargout = slf2slept(varargin)
 
     if exist(outputPath, 'file') && ~forceNew
 
-        load(outputPath, 'time', 'sleptLandload', 'sleptRsl', 'sleptGeoid', 'sleptBedrock');
+        load(outputPath, 'time', 'sleptLandload', 'sleptRsl', 'sleptGeoid', 'sleptSd', 'sleptBedrock');
 
         if beQuiet <= 2
             fprintf('%s loaded %s\n', upper(mfilename), outputPath);
@@ -59,7 +59,7 @@ function varargout = slf2slept(varargin)
     else
 
         %% Loading data
-        [time, plmtLandload, plmtRsl, plmtGeoid, plmtBedrock] = ...
+        [time, plmtLandload, plmtRsl, plmtGeoid, plmtSd, plmtBedrock] = ...
             slf2plmt(pcenter, rframe, rotation, L);
 
         %% Computing Slepian expansions
@@ -67,6 +67,7 @@ function varargout = slf2slept(varargin)
         sleptLandload = zeros([length(time), (L + 1) ^ 2]);
         sleptRsl = zeros([length(time), (L + 1) ^ 2]);
         sleptGeoid = zeros([length(time), (L + 1) ^ 2]);
+        sleptSd = zeros([length(time), (L + 1) ^ 2]);
         sleptBedrock = zeros([length(time), (L + 1) ^ 2]);
 
         % Compute Slepian expansions
@@ -74,11 +75,12 @@ function varargout = slf2slept(varargin)
             sleptLandload(t, :) = plm2slep_new(squeeze(plmtLandload(:, :, t)), domain, L, "BeQuiet", beQuiet);
             sleptRsl(t, :) = plm2slep_new(squeeze(plmtRsl(:, :, t)), domain, L, "BeQuiet", beQuiet);
             sleptGeoid(t, :) = plm2slep_new(squeeze(plmtGeoid(:, :, t)), domain, L, "BeQuiet", beQuiet);
+            sleptSd(t, :) = plm2slep_new(squeeze(plmtSd(:, :, t)), domain, L, "BeQuiet", beQuiet);
             sleptBedrock(t, :) = plm2slep_new(squeeze(plmtBedrock(:, :, t)), domain, L, "BeQuiet", beQuiet);
         end
 
         if saveData
-            save(outputPath, 'time', 'sleptLandload', 'sleptRsl', 'sleptGeoid', 'sleptBedrock', '-v7');
+            save(outputPath, 'time', 'sleptLandload', 'sleptRsl', 'sleptGeoid', 'sleptSd', 'sleptBedrock', '-v7');
 
             if ~beQuiet
                 fprintf('%s saved %s\n', upper(mfilename), outputPath);
@@ -89,11 +91,11 @@ function varargout = slf2slept(varargin)
     end
 
     %% Post-processing
-    [sleptLandload, sleptRsl, sleptGeoid, sleptBedrock] = ...
-        truncatetimerange(time, timeRange, sleptLandload, sleptRsl, sleptGeoid, sleptBedrock);
+    [~, sleptLandload, sleptRsl, sleptGeoid, sleptSd, sleptBedrock] = ...
+        truncatetimerange(time, timeRange, sleptLandload, sleptRsl, sleptGeoid, sleptSd, sleptBedrock);
 
     %% Collecting and displaying outputs
-    varargout = {time, sleptLandload, sleptRsl, sleptGeoid, sleptBedrock};
+    varargout = {time, sleptLandload, sleptRsl, sleptGeoid, sleptSd, sleptBedrock};
 
 end
 
@@ -107,23 +109,23 @@ function varargout = parseinputs(varargin)
     else
         productParser = inputParser;
         addOptional(productParser, 'ProcudtCenter', 'CSR', ...
-            @(x) ischar(x) || isstring(x));
+            @(x) (ischar(x) || isstring(x)) && ismember(upper(x), {'CSR', 'JPL', 'GFZ'}));
         addOptional(productParser, 'ReferenceFrame', 'CM', ...
-            @(x) ischar(x) || isstring(x));
+            @(x) (ischar(x) || isstring(x)) && ismember(upper(x), {'CF', 'CM'}));
         addOptional(productParser, 'Rotation', true, ...
             @(x) islogical(x) || isnumeric(x));
 
         if iscell(varargin) && length(varargin{1}) == 3
             parse(productParser, varargin{1}{:});
-            varargin = varargin{2:end};
+            varargin = varargin(2:end);
         else
             parse(productParser, varargin{1:3});
-            varargin = varargin{4:end};
+            varargin = varargin(4:end);
         end
 
-        pcenter = upper(productParser.Results.pcenter);
-        rframe = upper(productParser.Results.rframe);
-        rotation = logical(productParser.Results.rotation);
+        pcenter = upper(productParser.Results.ProcudtCenter);
+        rframe = upper(productParser.Results.ReferenceFrame);
+        rotation = logical(productParser.Results.Rotation);
     end
 
     if ~ismember(pcenter, {'CSR', 'JPL', 'GFZ'})
