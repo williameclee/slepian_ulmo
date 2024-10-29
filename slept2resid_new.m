@@ -149,7 +149,7 @@ function varargout = slept2resid_new(varargin)
     sleptSig = zeros(size(slept));
     sleptRes = zeros(size(slept));
     extravalues = zeros([length(dateExtra), nSleps]);
-    ftests = zeros([nSleps, fitwhat(1)]);
+    ftests = zeros([nSleps, 3]);
     % Figure out the orders and degrees of this setup
     % BUT orders and degrees have lost their meaning since slept should be
     % ordered by eigenvalue
@@ -201,18 +201,18 @@ function varargout = slept2resid_new(varargin)
         if ~isnan(spTerms{1})
             % Strip off the previous periodic terms here and REPLACE with
             % freqSpec
-            freqSpec = [freq, dateStd / spTerms{3}];
-            phaseSpec = repmat(freqSpec, nMonth, 1) * 2 * pi ... % angular
-                .* repmat(dateNml', 1, length(freqSpec));
+            spFreq = [freq, dateStd / spTerms{3}];
+            spPhase = repmat(spFreq, nMonth, 1) * 2 * pi ... % angular
+                .* repmat(dateNml', 1, length(spFreq));
             GSpec1 = [G1(:, 1:end - 2 * nOmega), ...
-                          cos(phaseSpec), sin(phaseSpec)];
+                          cos(spPhase), sin(spPhase)];
             GSpec2 = [G2(:, 1:end - 2 * nOmega), ...
-                          cos(phaseSpec), sin(phaseSpec)];
+                          cos(spPhase), sin(spPhase)];
             GSpec3 = [G3(:, 1:end - 2 * nOmega), ...
-                          cos(phaseSpec), sin(phaseSpec)];
+                          cos(spPhase), sin(spPhase)];
         else
-            freqSpec = [];
-            phaseSpec = [];
+            spFreq = [];
+            spPhase = [];
             GSpec1 = [];
             GSpec2 = [];
             GSpec3 = [];
@@ -220,17 +220,22 @@ function varargout = slept2resid_new(varargin)
 
     else
         phase = [];
+        spFreq = [];
+        spPhase = [];
+        GSpec1 = [];
+        GSpec2 = [];
+        GSpec3 = [];
     end
 
     %% Compute the fits
     isSpecialterm = 1:nSleps == spTerms{1};
     % Since each Slepian coefficient has different errors, each will have a
     % different weighting matrix.  Thus we loop over the coefficients.
-    for iSlep = 1:nSleps
+    parfor iSlep = 1:nSleps
         [sleptSig(:, iSlep), sleptRes(:, iSlep), ftests(iSlep, :), ...
              extravalues(:, iSlep)] = slept2resid_fitslept( ...
             slept(:, iSlep), fitwhat, givenerrors(:, iSlep), ...
-            isSpecialterm(iSlep), freq, phase, freqSpec, phaseSpec, ...
+            isSpecialterm(iSlep), freq, phase, spFreq, spPhase, ...
             dateNml, dateExtraNml, moredates, ...
             G1, G2, G3, GSpec1, GSpec2, GSpec3, nMonth);
 

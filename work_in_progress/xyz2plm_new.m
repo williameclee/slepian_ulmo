@@ -1,16 +1,17 @@
-% [lmcosi,dw,L2err]=XYZ2PLM(fthph,L,method,lat,lon,cnd)
+%% XYZ2PLM
+% [lmcosi,dw,L2err]=XYZ2PLM(mesh,L,method,lat,lon,cnd)
 %
 % Forward real spherical harmonic transform in the 4pi normalized basis.
 %
 % Converts a spatially gridded field into spherical harmonics.
 % For complete and regular spatial samplings [0 360 -90 90].
 % If regularly spaced and complete, do not specify lat,lon.
-% If not regularly spaced, fthph, lat and lon are column vectors.
+% If not regularly spaced, mesh, lat and lon are column vectors.
 %
 % INPUT:
 %
-% fthph         Real-valued function whose transform we seek:
-%               [1] MxN matrix of values corresponding to a regular grid
+% mesh         Real-valued function whose transform we seek:
+%               [1] MxN matrix of values corresponding to a regular (mesh)grid
 %               defined by lat,lon as described below, OR
 %               [2] an MNx1 vector of values corrsponding to a set of
 %               latitude and longitude values given by lat,lon as below

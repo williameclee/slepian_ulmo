@@ -59,14 +59,14 @@
 %   2019/03/18, mlubeck@email.arizona.edu
 %   2011/05/17, fjsimons@alum.mit.edu (@fjsimons)
 
-function varargout = grace2plmt(Pcenter, Rlevel, varargin)
+function varargout = grace2plmt_new(Pcenter, Rlevel, varargin)
     %% Initialisation
     % Parse inputs
     [Pcenter, Rlevel, Ldata, unit, forceNew, deg1corr, c20corr, c30corr] = ...
         parseinputs(Pcenter, Rlevel, varargin{:});
 
     % Find the coefficient files
-    [inputFolder, outputPath] = getIOfile(...
+    [inputFolder, outputPath] = getIOfile( ...
         Pcenter, Rlevel, Ldata, unit, deg1corr, c20corr, c30corr);
 
     % If this file already exists, load it.  Otherwise, or if we force it, make
@@ -172,15 +172,12 @@ function varargout = grace2plmt(Pcenter, Rlevel, varargin)
             Ldata = 90;
     end
 
-
     %% Computing the coefficients
     % WGS84 reference SETUP
     % For now just hardcode the even zonal coefficients (J), later use
     % Frederik's GRS.m program, don't bother with the higher degrees
     j2 = 0.108262982131e-2 * -1.0 / (2 * 2 + 1) ^ 0.5; % will be row 4
     j4 = -0.237091120053e-5 * -1.0 / (2 * 4 + 1) ^ 0.5; % will be row 11
-    % j2 = 0; % DEBUG
-    % j4 = 0; % DEBUG
     % Also useful
     a = fralmanac('a_EGM96', 'Earth');
 
@@ -370,9 +367,7 @@ function varargout = grace2plmt(Pcenter, Rlevel, varargin)
         % Combine into one matrix
         potcoffs(monthId, :, :) = lmcosi_month;
 
-        %%%
-        % CALIBRATED ERRORS
-        %%%
+        %% CALIBRATED ERRORS
         % We have no calibrated errors for CSR release 05, so we have to bypass
         % this section in this case.
         if (strcmp(Pcenter, 'CSR') || strcmp(Pcenter, 'JPL')) && (strcmp(Rlevel, 'RL05') ...
@@ -479,7 +474,7 @@ function varargout = grace2plmt(Pcenter, Rlevel, varargin)
             if strcmp(unit, 'SD')
                 % Need to make geoid first
                 a = fralmanac('a_EGM96', 'Earth');
-                calerrors_month = plm2pot(...
+                calerrors_month = plm2pot( ...
                     [calerrors_month(:, 1:2), calerrors_month(:, 3:4) * a], [], [], [], 4);
             end
 
@@ -532,7 +527,7 @@ function varargout = parseinputs(varargin)
 end
 
 function varargout = getIOfile(Pcenter, Rlevel, Ldata, unit, ...
-    deg1corr, c20corr, c30corr)
+        deg1corr, c20corr, c30corr)
 
     if ~isempty(getenv('ORIGINALGRACEDATA'))
         inputFolder = fullfile(getenv('ORIGINALGRACEDATA'), ...

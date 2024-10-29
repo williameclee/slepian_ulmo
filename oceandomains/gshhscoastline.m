@@ -145,9 +145,10 @@ end
 function p = croptolims(p, latlim, lonlim, lonOrigin)
     %% Shifting
     XY = poly2xy(p);
-    [X, Y] = ...
+    [Y, X] = ...
         flatearthpoly(XY(:, 2), XY(:, 1), lonOrigin);
-    p = polyshape([Y, X]);
+    X = X - floor(min(X(:))/360)*360;
+    p = polyshape([X, Y]);
 
     %% Cropping
     bbox = polyshape( ...

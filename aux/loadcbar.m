@@ -49,11 +49,11 @@
 function varargout = loadcbar(varargin)
     %% Initialisation
     % Parse inputs
-    [cLevels, cLim, cbarLabel, cmapName, FSettings, location, useDark] = ...
+    [cLevels, cLim, cbarLabel, cmapName, FSettings, location, useDark, cPalette] = ...
         parseinputs(varargin{:});
 
     %% Compute the colour levels and centre
-    [cMap, cLevels] = loadcmap(cmapName, cLevels);
+    [cMap, cLevels] = loadcmap(cmapName, cLevels, "Palette", cPalette);
     cLevelsForPlot = coarseclevels(cLevels);
 
     %% Create and style the colourbar
@@ -101,6 +101,7 @@ function varargout = parseinputs(varargin)
     addOptional(p, 'FSettings', [], @isstruct);
     addParameter(p, 'Location', 'eastoutside', @ischar);
     addParameter(p, 'DarkMode', false, @(x) islogical(x) || isnumeric(x));
+    addParameter(p, 'Palette', 'ccmap', @ischar);
     parse(p, varargin{:});
 
     cLim = p.Results.cLim;
@@ -125,8 +126,9 @@ function varargout = parseinputs(varargin)
     FSettings = p.Results.FSettings;
     location = p.Results.Location;
     useDark = logical(p.Results.DarkMode);
+    cPalette = p.Results.Palette;
 
-    varargout = {cLevels, cLim, cbarTitle, cmapName, FSettings, location, useDark};
+    varargout = {cLevels, cLim, cbarTitle, cmapName, FSettings, location, useDark, cPalette};
 end
 
 function cLevelsC = coarseclevels(cLevels)

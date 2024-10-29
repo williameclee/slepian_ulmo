@@ -44,8 +44,8 @@
 %       The default product is {'CSR', 'RL06', 60}.
 %   gia - Whether to apply the GIA correction or which model to use
 %       When set to FALSE, no corrections are applied.
-%       The default option is the ICE6G_D (M5a) solution as used in the CSR
-%       mascon solution.
+%       The default option is the ICE6G_D (VM5a) solution as used in the 
+%       CSR mascon solution.
 %   Deg1Correction, C20Correction, C30Correction - Wether you want to apply
 %       the degree 1, C20, or C30 corrections
 %   ForceNew - Wether or not you want to force recomputation

@@ -42,10 +42,12 @@ function varargout = loadcmap(varargin)
     addOptional(p, 'Name', 'seismic', @ischar);
     addOptional(p, 'cLim', [-1, 1], @isnumeric);
     addOptional(p, 'cStep', 16, @isnumeric);
+    addParameter(p, 'Palette', 'ccmap', @ischar);
     parse(p, varargin{:});
     cmapName = p.Results.Name;
     cLim = p.Results.cLim;
     cStep = p.Results.cStep;
+    cPalette = p.Results.Palette;
 
     %% Compute the colour levels and centre
     if isscalar(cLim)
@@ -57,17 +59,20 @@ function varargout = loadcmap(varargin)
     end
 
     %% Load the colourmap
-    try
-        cmap = ccmap(cmapName, cLevels);
-    catch
+    if strcmpi(cPalette, 'ccmap')
+
+        try
+            cmap = ccmap(cmapName, cLevels);
+        catch
+            cmap = kcmap(cmapName, cLevels);
+        end
+
+    elseif strcmpi(cPalette, 'kcmap')
 
         try
             cmap = kcmap(cmapName, cLevels);
         catch
-            cmap = jet(length(cLevels));
-            fprintf('The colourmap %s is not available. \n', cmapName);
-            fprintf('Consider getting better colourmaps at: \n%s\n', ...
-            'https://github.com/williameclee/MatlabColourmapGenerator.git');
+            cmap = ccmap(cmapName, cLevels);
         end
 
     end

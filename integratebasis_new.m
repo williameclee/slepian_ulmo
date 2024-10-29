@@ -123,7 +123,7 @@ function varargout = integratebasis_new(varargin)
                 try
                     [XY, lonc, latc] = domain.Lonlat;
                 catch
-                    [XY, lonc, latc] = feval(dom, pars, buf);
+                    [XY, lonc, latc] = feval(domain, pars, buf);
                 end
 
                 [thetap, phip, ~] = ...

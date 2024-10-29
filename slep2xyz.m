@@ -61,11 +61,12 @@ function varargout = slep2xyz(slep, domain, varargin)
     end
 
     % Parsing inputs
-    [slep, domain, L, meshSize, truncation, beQuiet] = ...
+    [slep, domain, L, lp, meshSize, truncation, beQuiet] = ...
         parseinputs(slep, domain, varargin{:});
 
     %% Computing the mesh
     [lmcosi, V, N] = slep2plm_new(slep, domain, L, "Truncation", truncation);
+    lmcosi = lmcosi(lmcosi(:, 1) <= lp, :);
     [mesh, lon, lat] = plm2xyz(lmcosi, meshSize, "BeQuiet", beQuiet);
 
     %% Collecting output
@@ -82,6 +83,7 @@ function varargout = parseinputs(varargin)
     addOptional(p, 'L', [], @isnumeric);
     addOptional(p, 'MeshSize', 1, @isnumeric);
     addOptional(p, 'Truncation', [], @isnumeric);
+    addOptional(p, 'LowPass', [], @isnumeric);
     addParameter(p, 'BeQuiet', false, @islogical);
     parse(p, varargin{:});
     slep = p.Results.SlepianCoefficient;
@@ -90,6 +92,11 @@ function varargout = parseinputs(varargin)
     meshSize = p.Results.MeshSize;
     truncation = p.Results.Truncation;
     beQuiet = p.Results.BeQuiet;
+    lp = p.Results.LowPass;
+
+    if isempty(lp) || isnan(lp)
+        lp = L;
+    end
 
     % Convert the domain to a GeoDomain object if applicable
     if ischar(domain) || isstring(domain) && exist(domain, "file")
@@ -110,5 +117,5 @@ function varargout = parseinputs(varargin)
 
     L = min(L, Ldata);
 
-    varargout = {slep, domain, L, meshSize, truncation, beQuiet};
+    varargout = {slep, domain, L, lp, meshSize, truncation, beQuiet};
 end

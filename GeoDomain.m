@@ -138,7 +138,7 @@ classdef GeoDomain
             end
 
             try
-                [lonlat, ~, ~] = feval(obj.Domain, "Upscale", obj.Upscale, ...
+                [lonlat, lonc, latc] = feval(obj.Domain, "Upscale", obj.Upscale, ...
                     "Buffer", obj.Buffer, "Latlim", obj.Latlim, ...
                     "NearBy", obj.NearBy, "LonOrigin", lonOrigin, ...
                     "MoreBuffers", obj.MoreBuffers, "RotateBack", rotateBack, ...
@@ -159,8 +159,14 @@ classdef GeoDomain
 
                 if nargout == 1
                     varargout = {lonlat};
-                else
+                elseif nargout == 2
                     varargout = {lonlat(:, 1), lonlat(:, 2)};
+                elseif nargout == 3
+                    varargout = {lonlat, lonc, latc};
+                elseif nargout == 4
+                    varargout = {lonlat(:, 1), lonlat(:, 2), lonc, latc};
+                else
+                    error('Invalid number of outputs')
                 end
 
                 return
