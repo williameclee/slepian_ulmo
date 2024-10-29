@@ -1,19 +1,19 @@
 %% GIA2SLEPT
-% Computes the vertical displacement provided by a GIA model projected onto 
+% Computes the vertical displacement provided by a GIA model projected onto
 % the Slepian basis.
 %
 % Syntax
-%   slep = gia2slept(model, [r, phi, theta, omega], domain)
-%   slep = gia2slept(model, L, domain)
-%   slept = gia2slept(years, __)
-%   slept = gia2slept(time, __)
-%   slept = gia2slept(__, 'Name', Value)
-%   [slept, total] = gia2slept(__)
+%   slep = giaz2slept(model, [r, phi, theta, omega], L)
+%   slep = giaz2slept(model, domain, L)
+%   slept = giaz2slept(years, __)
+%   slept = giaz2slept(time, __)
+%   slept = giaz2slept(__, 'Name', Value)
+%   [slept, total] = giaz2slept(__)
 %
 % Input arguments
 %   model - Name of the GIA model
-%       - Name of a model computed by H. Steffen. It can be specified as, 
-%           e.g. 'Steffen_ice6g_vm5a' or {'Steffen', 'ice6g', 'vm5a'}. 
+%       - Name of a model computed by H. Steffen. It can be specified as,
+%           e.g. 'Steffen_ice6g_vm5a' or {'Steffen', 'ice6g', 'vm5a'}.
 %       Other models are specified in the same way.
 %       - The input can also be the path to the model file.
 %		The default model is 'Steffen_ice6g_vm5a'.
@@ -54,7 +54,7 @@
 % Output arguments
 %   slep - The GIA displacement projected onto the Slepian basis
 %       Format: (L+1)^2 x 1 double array.
-%   slept - The GIA displacement time series projected onto the Slepian 
+%   slept - The GIA displacement time series projected onto the Slepian
 %       basis
 %       Format: (L+1)^2 x ndates double array.
 %   total - Total GIA displacment over the domain
@@ -80,15 +80,25 @@ function varargout = giaz2slept(varargin)
 
     %% Loading the model
     % Get the yearly trend
-    wPlm = giaz2plmt(model, L);
+    [wPlm, wUPlm, wLPlm] = giaz2plmt(model, L);
     [wSlep, ~, N, ~, G] = ...
         plm2slep_new(wPlm, domain, L, "BeQuiet", beQuiet);
     wSlept = wSlep * dYear;
 
-    varargout = {wSlept};
+    if ismatrix(wUPlm) && ismatrix(wLPlm)
+        wUSlep = plm2slep_new(wUPlm, domain, L, "BeQuiet", beQuiet);
+        wLSlep = plm2slep_new(wLPlm, domain, L, "BeQuiet", beQuiet);
+        wUSlept = wUSlep * dYear;
+        wLSlept = wLSlep * dYear;
+    else
+        wUSlept = [];
+        wLSlept = [];
+    end
+
+    varargout = {wSlept, wUSlept, wLSlept};
 
     %% Getting the total
-    if nargout >= 2
+    if nargout >= 4
         truncation = round(N);
 
         eigfunInt = integratebasis_new( ...
@@ -98,7 +108,7 @@ function varargout = giaz2slept(varargin)
         total = eigfunInt' * wSlept(1:truncation, :);
         total = total(:);
 
-        varargout = {wSlept, total};
+        varargout = {wSlept, wUSlept, wLSlept, total};
     end
 
     if nargout > 0 || ~makePlot
@@ -135,11 +145,11 @@ function varargout = parseinputs(varargin)
         @(x) isnumeric(x) || isdatetime(x) || isduration(x) || isempty(x));
     addOptional(p, 'Model', modelD, ...
         @(x) ischar(x) || (iscell(x) && length(x) == 3) || isempty(x));
-    addOptional(p, 'L', LD, ...
-        @(x) isnumeric(x) || isempty(x));
     addOptional(p, 'Domain', domainD, ...
         @(x) ischar(x) || isstring(x) || iscell(x) ...
         || isa(x, 'GeoDomain') || isnumeric(x) || isempty(x));
+    addOptional(p, 'L', LD, ...
+        @(x) isnumeric(x) || isempty(x));
     addOptional(p, 'phi', phiD, @(x) isnumeric(x) || isempty(x));
     addOptional(p, 'theta', thetaD, @(x) isnumeric(x) || isempty(x));
     addOptional(p, 'omega', omegaD, @(x) isnumeric(x) || isempty(x));
@@ -209,7 +219,6 @@ function plotdispmap(model, plm, slept, dYear, domain, L)
     domainLonlat = domain.Lonlat('LonOrigin', 180);
 
     [cLim, cStep] = optimalclim(meshLcl, 'Percentile', 1);
-    % [cLim, cStep] = optimalclim((mesh + meshLcl * 9) / 10, 'Percentile', 1);
     mesh = max(min(mesh, cLim(2)), cLim(1));
     meshLcl = max(min(meshLcl, cLim(2)), cLim(1));
 

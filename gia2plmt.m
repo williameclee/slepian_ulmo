@@ -151,8 +151,8 @@ function varargout = gia2plmt(varargin)
 
     %% Collecting outputs
     if ~hasBounds
-        GIAtU = nan;
-        GIAtL = nan;
+        GIAtU = [];
+        GIAtL = [];
 
         if nargout > 1
             warning('SLEPIAN:gia2plmt:noBoundsToReturn', ...
@@ -253,7 +253,7 @@ function inputPath = finddatafile(model)
     if exist(inputPath, 'file') ~= 2
 
         if strcmp(model, 'LM17.3')
-            if exist(fullfile(inputFolder, '/Users/williameclee/slepian/data/GIA/LM17.3/LM17.3_0.5x0.5_geoid_globe.txt'), 'file')
+            if exist(fullfile(inputFolder, 'LM17.3_0.5x0.5_geoid_globe.txt'), 'file')
                 lm17_Sd(inputFolder, inputPath);
             else
                 error('Model %s not found\nPlease download it from %s', ...

@@ -57,7 +57,7 @@
 %   2024/10/03, williameclee@arizona.edu (@williameclee)
 %   2024/09/12, williameclee@arizona.edu (@williameclee)
 
-function wPlmt = giaz2plmt(varargin)
+function varargout = giaz2plmt(varargin)
     %% Initialisation
     % Parse the inputs
     [model, L, dYear, beQuiet, makePlot] = parseinputs(varargin{:});
@@ -66,9 +66,21 @@ function wPlmt = giaz2plmt(varargin)
     if contains(model, 'Steffen')
         [wXY, ~, ~] = findsteffendata(model);
         wPlmt = xyz2plm_new(wXY, L, "BeQuiet", beQuiet);
+        wUPlmt = [];
+        wLPlmt = [];
     elseif strcmp(model, 'LM17.3')
         wPlmt = lm17_vup;
         wPlmt = wPlmt(wPlmt(:, 1) <= L, :);
+        wUPlmt = [];
+        wLPlmt = [];
+    elseif contains(lower(model), 'caron')
+        % Load the Caron model
+        inputFolder = fullfile(getenv('IFILES'), 'GIA', capitalise(model));
+        inputPath = fullfile(inputFolder, [capitalise(model), '_VLM.mat']);
+        load(inputPath, 'lmcosiM', 'lmcosiU', 'lmcosiL');
+        wPlmt = lmcosiM(lmcosiM(:, 1) <= L, :);
+        wUPlmt = lmcosiU(lmcosiU(:, 1) <= L, :);
+        wLPlmt = lmcosiL(lmcosiL(:, 1) <= L, :);
     else
         error('Unrecognised model name %s', upper(model));
     end
@@ -80,7 +92,21 @@ function wPlmt = giaz2plmt(varargin)
         wPlmt = plm2plmt(wPlmt, dYear);
     end
 
+    if ~isempty(wUPlmt) && ~isempty(wLPlmt)
+
+        if isscalar(dYear)
+            wUPlmt(:, 3:4) = dYear .* wUPlmt(:, 3:4);
+            wLPlmt(:, 3:4) = dYear .* wLPlmt(:, 3:4);
+        else
+            wUPlmt = plm2plmt(wUPlmt, dYear);
+            wLPlmt = plm2plmt(wLPlmt, dYear);
+        end
+
+    end
+
     %% Collecting and displaying outputs
+    varargout = {wPlmt, wUPlmt, wLPlmt};
+
     if nargout > 0 || ~makePlot
         return
     end

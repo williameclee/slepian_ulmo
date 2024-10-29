@@ -42,7 +42,7 @@ function lm17_sd(varargin)
     [lonn, latt] = meshgrid(lon, lat);
     F = scatteredInterpolant(T.Long, T.Lat, T{:, 3}, 'linear', 'nearest');
     z = F(lonn, latt);
-    z = z / 100; % convert to mm/yr
+    z = z / 1000; % convert to m/yr
 
     % Convert to spherical harmonics surface density
     geoidPlm = xyz2plm(z, 180);

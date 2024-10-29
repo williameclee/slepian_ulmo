@@ -30,6 +30,8 @@
 %           Suitable for Antarctica.
 %       - 'W12a_v1': A 'best' model from Whitehouse et al. (2012). Suitable
 %           only for Antarctica.
+%       - 'LM17.3'
+%       - 'Caron18' and 'Caron19'
 %       The input can also be the path to the model file.
 %		The default model is 'Steffen_ice6g_vm5a'.
 %   r - The angular extent of the spherical cap radius in degrees
@@ -101,13 +103,13 @@ function varargout = gia2slept(varargin)
         warning('off', 'SLEPIAN:gia2plmt:noBoundsToReturn');
         [plm, plmU, plmL] = gia2plmt( ...
             [], model, L, "BeQuiet", beQuiet);
-        hasBounds = ~isnan(plmU) && ~isnan(plmL);
+        hasBounds = ~isempty(plmU) && ~isempty(plmL);
 
         L = conddefval(L, max(plm(:, 1)));
 
         %% Computing the basis
         [falpha, falphaU, falphaL, N, G] = findslepianbasis( ...
-            plm, domain, phi, theta, omega, L, hasBounds, beQuiet);
+            plm, plmU, plmL, domain, phi, theta, omega, L, hasBounds, beQuiet);
 
         %% Getting the trend
         if isempty(date) || isscalar(date)
@@ -158,7 +160,10 @@ function varargout = gia2slept(varargin)
         return
     end
 
-    plotgiamap(model, plm, falpha, deltaYear, domain, L);
+    try
+        plotgiamap(model, plm, falpha, deltaYear, domain, L);
+    catch
+    end
 
 end
 
@@ -223,7 +228,7 @@ function varargout = parseinputs(varargin)
 
 end
 
-function varargout = findslepianbasis(plm, domain, phi, theta, omega, ...
+function varargout = findslepianbasis(plm, plmU, plmL, domain, phi, theta, omega, ...
         L, hasBounds, beQuiet)
     falphaU = nan;
     falphaL = nan;
