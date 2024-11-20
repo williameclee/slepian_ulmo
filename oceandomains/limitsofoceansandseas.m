@@ -1,3 +1,14 @@
+%% LIMITSOFOCEANSANDSEAS 
+% Returns the boundary of oceans and seas
+%
+% Data source
+%   The ocean boundaries are based on IHO's 'Limits of oceans and seas':
+%       International Hydrographic Organization & Sieger, R. (2012).
+%       doi: 10.1594/PANGAEA.777975
+%
+% Last modified by
+%   2024/11/20, williameclee@arizona.edu (@williameclee)
+
 function LimitsOfOceansAndSeas = limitsofoceansandseas(varargin)
     warning('off', 'MATLAB:polyshape:repairedBySimplify')
     p = inputParser;
@@ -9,7 +20,7 @@ function LimitsOfOceansAndSeas = limitsofoceansandseas(varargin)
     matFileName = ...
         fullfile(getenv('COASTS'), 'Limits_of_oceans_and_seas.mat');
 
-    if exist(matFileName, 'file') == 2
+    if isfile(matFileName)
         load(matFileName, 'LimitsOfOceansAndSeas')
 
         if ~beQuiet
@@ -22,7 +33,7 @@ function LimitsOfOceansAndSeas = limitsofoceansandseas(varargin)
     rawFileName = ...
         fullfile(getenv('COASTS'), 'Limits_of_oceans_and_seas.tab');
 
-    if exist(rawFileName, 'file') ~= 2
+    if ~isfile(rawFileName)
         error('The file %s does not exist.', rawFileName)
     end
 

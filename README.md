@@ -20,6 +20,7 @@ Functions in this repository may call or overwrite functions from the following 
 
 The following ocean basins are supported:
 
+- `alloceans`: All oceans, including everything
 - `oceans`: All oceans, excluding the Arctic Ocean at the moment
 - `pacific`: The Pacific Ocean
 - `npacific`: The North Pacific Ocean
@@ -41,7 +42,13 @@ A new class is introduced as an interface to geographic domains:
 
 - `GeoDomain`: A class that supports a few new methods that make fetching vertices and defining file names easier.
 
+### Computing sea-level fingerprints
+
+- `solvesle`: Solves the elastic sea-level equationfor a given forcing and ocean function
+- `grace2fingerprint`: Uses GRACE data and GIA models to compute the sea-level fingerprints
+
 ### Projection of other fields to Slepian functions
+
 The CSR GRACE mascon data (all components), various GIA models, and the sea-level fingerprints (all components) are natively supported to be projected to Slepian functions. The functions are:
 
 - `gia2plmt`/`giaz2plmt`: Fetch the the geoid deformation/vertical displacement due to GIA projected to SH coefficients.
@@ -76,24 +83,14 @@ Additionally, `correct4gia` (from slepian_delta) has been split into two functio
 ### Visualisations
 
 - `eigenwmesh`: Returns a mesh of the eigenvalue-weighted power map of the given Slepian functions.
-- `equalearth` and `equalearthd`: Project a longitude-latitude vertex to the Equal Earth projection. 
+- `equalearth` and `equalearthd`: Project a longitude-latitude vertex to the Equal Earth projection.
 - `loadbasemap`: Loads an axesm-based map of the given geographic domain.
 - `plotqdm`: Plots a quick-and-dirty map (i.e. on a normal axes object) of the given coordinates.
 
 Other supporting functions for visualisation include:
 `formatlonticks`, `fotmatlatticks`, `loadcbar`, `loadcmap`, and more.
 
-### Examples and demos
-
-Mant functions in this package have demos. Use
-
-```matlab
-    fun('demo')
-```
-
-to run the demo of function `fun` (use the `help` command to see more details of supported demo IDs).
-Some examples can also be run directly from the examples directory.
-
 ---
 Last modified by:
-- [En-Chi Lee (@williameclee)](https://github.com/williameclee), 2024/09/12
+
+- [En-Chi Lee (@williameclee)](https://github.com/williameclee), 2024/11/20

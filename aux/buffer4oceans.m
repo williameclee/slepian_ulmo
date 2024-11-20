@@ -1,3 +1,9 @@
+%% BUFFER4OCEANS
+% Buffers the coastlines
+%
+% Last modified by
+%   2024/11/20, williameclee@arizona.edu (@williameclee)
+
 function [coastXY, coastPoly] = buffer4oceans(coast, varargin)
     % Suppress warnings
     warning('off', 'MATLAB:polyshape:repairedBySimplify')
@@ -19,12 +25,18 @@ function [coastXY, coastPoly] = buffer4oceans(coast, varargin)
     end
 
     if isempty(moreBufs)
-        coastXY = closecoastline(coastPoly.Vertices);
+        coastXY = boundary(coastPoly);
         return
     end
 
     for i = 1:length(moreBufs) / 2
-        moreCoastXY = feval(moreBufs{i * 2 - 1}, [], moreBufs{i * 2});
+
+        try
+            moreCoastXY = feval(moreBufs{i * 2 - 1}, [], moreBufs{i * 2}, "RotateBack", true);
+        catch
+            moreCoastXY = feval(moreBufs{i * 2 - 1}, [], moreBufs{i * 2});
+        end
+
         [moreCoastY, moreCoastX] = flatearthpoly( ...
             moreCoastXY(:, 2), moreCoastXY(:, 1), lonOrigin);
         moreCoastPoly = polyshape(moreCoastX, moreCoastY);

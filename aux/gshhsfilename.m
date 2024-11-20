@@ -1,3 +1,9 @@
+%% GSHHSFILENAME
+%  Generates the file name for the GSHHS data file.
+%
+% Last modified by
+%   2024/11/20, williameclee@arizona.edu (@williameclee)
+
 function [file, folder, fileExists] = gshhsfilename(varargin)
     %% Initialisation
     p = inputParser;
@@ -75,5 +81,5 @@ function [file, folder, fileExists] = gshhsfilename(varargin)
     file = fullfile(folder, ...
         ['gshhs_', dataQuality, upscaleString, bufString, ...
          minLandAreaString, tolString, '.mat']);
-    fileExists = exist(file, 'file') == 2;
+    fileExists = isfile(file);
 end

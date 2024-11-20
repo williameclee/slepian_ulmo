@@ -91,6 +91,6 @@ function [dataPath, dataFolder, fileExists] = ...
 
     dataPath = fullfile(dataFolder, [dataFile, '.mat']);
 
-    fileExists = exist(dataPath, 'file') == 2;
+    fileExists = isfile(dataPath);
 
 end

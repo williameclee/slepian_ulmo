@@ -20,7 +20,7 @@
 %
 % Output arguments
 %   p - The polygon of the ocean boundary
-%   latlim, lonmin - The latitude and longitude limits of the ocean 
+%   latlim, lonmin - The latitude and longitude limits of the ocean
 %       boundary
 %
 % Data source
@@ -32,32 +32,38 @@
 %   LIMITSOFOCEANSANDSEAS
 %
 % Last modified by
+%   2024/11/20, williameclee@arizona.edu (@williameclee)
 %   2024/08/12, williameclee@arizona.edu (@williameclee)
 
 function [p, latlim, lonmin] = oceanpoly(oceanNames, varargin)
     %% Initialisation
     % Parse inputs
-    p = inputParser;
-    addRequired(p, 'Oceans', @(x) iscell(x) || ischar(x) || isstring(x));
-    addOptional(p, 'Latlim', [-90, 90], @isnumeric);
-    addOptional(p, 'LonOrigin', 180, @isnumeric);
-    addParameter(p, 'BeQuiet', false, ...
+    ip = inputParser;
+    addRequired(ip, 'Oceans', @(x) iscell(x) || ischar(x) || isstring(x));
+    addOptional(ip, 'Latlim', [-90, 90], @isnumeric);
+    addOptional(ip, 'LonOrigin', 180, @isnumeric);
+    addParameter(ip, 'BeQuiet', false, ...
         @(x) islogical(x) || isnumeric(x));
-    parse(p, oceanNames, varargin{:});
-    oceanNames = p.Results.Oceans;
-    latlim = p.Results.Latlim;
-    lonOrigin = p.Results.LonOrigin;
-    beQuiet = logical(p.Results.BeQuiet);
-
-    clear p % Avoid confusion with the output polygon
+    parse(ip, oceanNames, varargin{:});
+    oceanNames = ip.Results.Oceans;
+    latlim = ip.Results.Latlim;
+    lonOrigin = ip.Results.LonOrigin;
+    beQuiet = logical(ip.Results.BeQuiet);
 
     %% Finding the ocean boundary
     % Load the ocean boundaries
     LimitsOfOceansAndSeas = limitsofoceansandseas('BeQuiet', beQuiet);
-    p = union( ...
+    oceanNames1 = oceanNames(~ismember(oceanNames, {'Arctic Ocean, eastern part'}));
+    oceanNames2 = oceanNames(~ismember(oceanNames, {'Arctic Ocean, western part'}));
+    p1 = union( ...
         [LimitsOfOceansAndSeas( ...
-         ismember({LimitsOfOceansAndSeas.Name}, oceanNames) ...
+         ismember({LimitsOfOceansAndSeas.Name}, oceanNames1) ...
      ).poly]);
+    p2 = union( ...
+        [LimitsOfOceansAndSeas( ...
+         ismember({LimitsOfOceansAndSeas.Name}, oceanNames2) ...
+     ).poly]);
+    p = union(p1, p2);
 
     p = simplify(p);
     [lon, lat] = poly2cw( ...

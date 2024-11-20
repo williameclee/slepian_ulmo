@@ -6,3 +6,4 @@
 gausslegendrecof.mat
 examples/giacomparison_example.mat
 unittests/unittests.m
+*_processor.m
