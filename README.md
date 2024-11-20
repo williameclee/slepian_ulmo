@@ -58,8 +58,8 @@ The CSR GRACE mascon data (all components), various GIA models, and the sea-leve
 - `mascon2slept`: Fetch the CSR GRACE mascon data projected to Slepian coefficients.
 - `mass2weq`: Converts mass data to water equivalent.
 - `slep2xyz`: Converts Slepian functions to a mesh on a sphere.
-- `slf2plmt`: Fetch the sea-level fingerprints projected to SH coefficients.
-- `slf2slept`: Fetch the sea-level fingerprints projected to Slepian coefficients.
+- `slfa2plmt`: Fetch the sea-level fingerprints calculated by [Adhikari et al. (2019)](https://doi.org/10.5194/essd-11-629-2019).
+- `slfa2slept`: Project the sea-level fingerprints calculated by [Adhikari et al. (2019)](https://doi.org/10.5194/essd-11-629-2019) to Slepian coefficients.
 
 ### Modifications to functions from other packages
 
@@ -68,7 +68,7 @@ The following functions have also been modified (mainly to support `GeoDomain`),
 - `correct4gia` (from slepian_delta) → `correct4gia_new`, although this function should be archived
 - `glmalpha` (from slepian_alpha) → `glmalpha_new`
 - `grace2plmt` (from slepian_delta)
-- `grace2slept` (from slepian_delta) -> `grace2slept_new`
+- `grace2slept` (from slepian_delta) → `grace2slept_new`
 - `integratebasis` (from slepian_delta) → `integratebasis_new` (not fully tested yet)
 - `kernelcp` (from slepian_alpha) → `kernelcp_new`
 - `plm2slep` (from slepian_bravo) → `plm2slep_new`

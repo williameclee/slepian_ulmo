@@ -1,4 +1,4 @@
-%% SLF2SLEPT
+%% SLFA2SLEPT
 % Computes Slepian expansions of the sea-level fingerprints (SLF)
 %
 % Syntax
@@ -38,17 +38,17 @@
 % Last modified by
 %   2024/08/22, williameclee@arizona.edu (@williameclee)
 
-function varargout = slf2slept(varargin)
+function varargout = slfa2slept(varargin)
     %% Initialisation
     % Parse inputs
     [pcenter, rframe, rotation, domain, L, timeRange, beQuiet, forceNew, saveData] = parseinputs(varargin{:});
 
     %% Finding precomputed data
     outputFolder = fullfile(getenv('GRACEDATA'), 'SlepianExpansions');
-    outputFile = sprintf('%s-SLF%i-%s.mat', upper(mfilename), L, domain.Id);
+    outputFile = sprintf('%s-SLF-%s-%s-%d-%i-%s.mat', upper(mfilename), pcenter, rframe, rotation, L, domain.Id);
     outputPath = fullfile(outputFolder, outputFile);
 
-    if exist(outputPath, 'file') && ~forceNew
+    if isfile(outputPath) && ~forceNew
 
         load(outputPath, 'time', 'sleptLandload', 'sleptRsl', 'sleptGeoid', 'sleptSd', 'sleptBedrock');
 
@@ -60,24 +60,14 @@ function varargout = slf2slept(varargin)
 
         %% Loading data
         [time, plmtLandload, plmtRsl, plmtGeoid, plmtSd, plmtBedrock] = ...
-            slf2plmt(pcenter, rframe, rotation, L);
+            slfa2plmt(pcenter, rframe, rotation, L);
 
         %% Computing Slepian expansions
-        % Preallocate
-        sleptLandload = zeros([length(time), (L + 1) ^ 2]);
-        sleptRsl = zeros([length(time), (L + 1) ^ 2]);
-        sleptGeoid = zeros([length(time), (L + 1) ^ 2]);
-        sleptSd = zeros([length(time), (L + 1) ^ 2]);
-        sleptBedrock = zeros([length(time), (L + 1) ^ 2]);
-
-        % Compute Slepian expansions
-        parfor t = 1:length(time)
-            sleptLandload(t, :) = plm2slep_new(squeeze(plmtLandload(:, :, t)), domain, L, "BeQuiet", beQuiet);
-            sleptRsl(t, :) = plm2slep_new(squeeze(plmtRsl(:, :, t)), domain, L, "BeQuiet", beQuiet);
-            sleptGeoid(t, :) = plm2slep_new(squeeze(plmtGeoid(:, :, t)), domain, L, "BeQuiet", beQuiet);
-            sleptSd(t, :) = plm2slep_new(squeeze(plmtSd(:, :, t)), domain, L, "BeQuiet", beQuiet);
-            sleptBedrock(t, :) = plm2slep_new(squeeze(plmtBedrock(:, :, t)), domain, L, "BeQuiet", beQuiet);
-        end
+        sleptLandload = plm2slep_new(plmtLandload, domain, L, "BeQuiet", beQuiet);
+        sleptRsl = plm2slep_new(plmtRsl, domain, L, "BeQuiet", beQuiet);
+        sleptGeoid = plm2slep_new(plmtGeoid, domain, L, "BeQuiet", beQuiet);
+        sleptSd = plm2slep_new(plmtSd, domain, L, "BeQuiet", beQuiet);
+        sleptBedrock = plm2slep_new(plmtBedrock, domain, L, "BeQuiet", beQuiet);
 
         if saveData
             save(outputPath, 'time', 'sleptLandload', 'sleptRsl', 'sleptGeoid', 'sleptSd', 'sleptBedrock', '-v7');
@@ -215,10 +205,8 @@ function varargout = truncatetimerange(time, trange, varargin)
         return
     end
 
-    varargin = varargin(:)';
-
     for i = 1:length(varargin)
-        varargin{i} = squeeze(varargin{i}(timeId, :));
+        varargin{i} = squeeze(varargin{i}(:, timeId));
     end
 
     varargout = [{time}, varargin];

@@ -1,4 +1,4 @@
-%% SLF2PLMT
+%% SLFA2PLMT
 % Reads sea level fingerprints (SLF) SH coefficients
 %
 % Syntax
@@ -44,7 +44,7 @@
 % Last modified by
 %   2024/08/22, williameclee@arizona.edu(@williameclee)
 
-function varargout = slf2plmt(varargin)
+function varargout = slfa2plmt(varargin)
     %% Initialisation
     % Parse inputs
     [pcenter, rframe, rotation, timerange, L, ...
@@ -54,7 +54,7 @@ function varargout = slf2plmt(varargin)
     [time, inputPaths, outputPath] = getIOfiles(pcenter, rframe, rotation);
 
     %% Computing or loading data
-    if exist(outputPath, 'file') && ~forceNew
+    if isfile(outputPath) && ~forceNew
         load(outputPath, 'time', 'Ldata', ...
             'plmLandload', 'plmRsl', 'plmGeoid', 'plmSd', 'plmBedrock');
 
@@ -196,6 +196,12 @@ function varargout = getIOfiles(center, frame, rotation)
     dataFolder = fullfile(getenv('IFILES'), ...
         'SLF', 'Adhikari2019', 'SLFsh_coefficients');
 
+    if ~exist(dataFolder, 'dir')
+        dataUrl = 'https://dataverse.harvard.edu/file.xhtml?persistentId=doi:10.7910/DVN/8UC8IR/H9FTN4&version=3.0#';
+        error('%s cannot find the data directory\nDownload the data from %s\and put it under %s', ...
+            upper(mfilename), dataUrl, dataFolder);
+    end
+
     %% Find data files
     inputFolder = fullfile( ...
         dataFolder, centerFolder, frameFolder, rotFolder);
@@ -223,8 +229,8 @@ function varargout = getIOfiles(center, frame, rotation)
     inputPaths = fullfile(inputFolder, inputFiles);
 
     % Find output file location
-    outputFile = sprintf('SLF-%s-%s-%i.mat', ...
-        center, frame, uint8(rotation));
+    outputFile = sprintf('SLF-%s-%s-%d.mat', ...
+        center, frame, rotation);
     outputPath = fullfile(dataFolder, outputFile);
 
     varargout = {time, inputPaths, outputPath};
