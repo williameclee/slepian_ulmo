@@ -29,7 +29,7 @@
 %       The default value is the same as L
 %
 % Output arguments
-%   rslPlmt - Relative sea level spherical harmonic coefficients
+%   rslPlmt - Relative sea level load spherical harmonic coefficients
 %   time - Time stamps of the data, in datetime format
 %
 % See also
@@ -37,8 +37,11 @@
 %
 % Authored by
 %   2024/11/20, williameclee@arizona.edu (@williameclee)
+%
+% Last modified by
+%   2025/02/05, williameclee@arizona.edu (@williameclee)
 
-function [rslPlmt, time] = grace2fingerprint(varargin)
+function [rslLoadSpht, time] = grace2fingerprint(varargin)
     %% Parsing inputs
     ip = inputParser;
     addOptional(ip, 'Product', {'CSR', 'RL06', 60}, ...
@@ -51,6 +54,7 @@ function [rslPlmt, time] = grace2fingerprint(varargin)
     addParameter(ip, 'RotationFeedback', true, @(x) isscalar(x) && (islogical(x) || isnumeric(x)));
     addParameter(ip, 'Frame', 'CF', @(x) ischar(validatestring(x, {'CF', 'CM'})));
     addParameter(ip, 'Truncation', [], @(x) isempty(x) || (isnumeric(x) && isscalar(x)));
+    addParameter(ip, 'TimeRange', [], @(x) (isdatetime(x) || isnumeric(x)) && length(x) == 2);
     addParameter(ip, 'BeQuiet', false, @(x) isscalar(x) && islogical(x));
     addParameter(ip, 'ForceNew', false, @(x) isscalar(x) && islogical(x));
     addParameter(ip, 'SaveData', true, @(x) isscalar(x) && islogical(x));
@@ -67,6 +71,12 @@ function [rslPlmt, time] = grace2fingerprint(varargin)
         doGia = true;
     end
 
+    timelim = ip.Results.TimeRange;
+
+    if isnumeric(timelim)
+        timelim = datetime(timelim, "ConvertFrom", 'datenum');
+    end
+
     doGiaFeedback = ip.Results.GIAFeedback;
     doRotationFeedback = ip.Results.RotationFeedback;
     frame = ip.Results.Frame;
@@ -79,10 +89,25 @@ function [rslPlmt, time] = grace2fingerprint(varargin)
     [filepath, fileexists] = findoutputpath(product, L, oceanDomain, frame, giaModel, doGiaFeedback, doRotationFeedback);
 
     if fileexists && ~forceNew
-        load(filepath, 'rslPlmt', 'time');
+
+        load(filepath, 'rslLoadTspht', 'time');
+
+        if ~exist('rslLoadTspht', 'var')
+            load(filepath, 'rslTrunPlmt', 'time');
+            rslLoadTspht = rslTrunPlmt;
+        end
+
+        if ~isempty(timelim)
+            rslLoadTspht = rslLoadTspht(:, :, time >= timelim(1) & time <= timelim(2));
+            time = time(time >= timelim(1) & time <= timelim(2));
+        end
+
+        nData = size(rslLoadTspht, 3);
+        [order, degree] = addmon(L);
+        rslLoadSpht = cat(2, repmat(degree, [1, 1, nData]), repmat(order, [1, 1, nData]), rslLoadTspht);
 
         if ~isempty(Loutput) && Loutput < L
-            rslPlmt = rslPlmt(1:addmup(Loutput), :, :);
+            rslLoadSpht = rslLoadSpht(1:addmup(Loutput), :, :);
         end
 
         if ~beQuiet
@@ -93,15 +118,16 @@ function [rslPlmt, time] = grace2fingerprint(varargin)
     end
 
     %% Loading data
-    [gracePlmt, ~, time] = grace2plmt_new(product{:}, 'SD', "BeQuiet", beQuiet);
+    [graceSpht, ~, time] = grace2plmt_new(product{:}, 'SD', "BeQuiet", beQuiet);
 
     % Permute to [lmcosi, time]
-    if size(gracePlmt, 1) == length(time)
-        gracePlmt = permute(gracePlmt, [2, 3, 1]);
+    if size(graceSpht, 1) == length(time)
+        graceSpht = permute(graceSpht, [2, 3, 1]);
     end
 
     % Ignore uncertainty
-    gracePlmt = gracePlmt(:, 1:4, :);
+    graceSpht = graceSpht(:, 1:4, :);
+    graceSpht(:, 3:4, :) = graceSpht(:, 3:4, :) - mean(graceSpht(:, 3:4, :), 3);
 
     % Convert time to datetime
     if isnumeric(time)
@@ -110,42 +136,60 @@ function [rslPlmt, time] = grace2fingerprint(varargin)
 
     % Load GIA model
     if doGia
-        giaPlmt = gia2plmt(time, giaModel, L, "BeQuiet", beQuiet);
-
-        % Permute to [lmcosi, time]
-        if size(giaPlmt, 1) == length(time)
-            giaPlmt = permute(giaPlmt, [2, 3, 1]);
-        end
-
+        giaSdSpht = gia2plmt(time, giaModel, L, "OutputFormat", 'traditional', "BeQuiet", beQuiet);
     end
 
     %% Data preprocessing
     % Make to the same degree
     if product{3} < L
         [order, degree] = addmon(L);
-        gracePlmt(1:addmup(L), 1, :) = repmat(degree, [1, 1, length(time)]);
-        gracePlmt(1:addmup(L), 2, :) = repmat(order, [1, 1, length(time)]);
+        graceSpht(1:addmup(L), 1, :) = repmat(degree, [1, 1, length(time)]);
+        graceSpht(1:addmup(L), 2, :) = repmat(order, [1, 1, length(time)]);
     end
 
     % Correct for GIA
-    gracePlmt(:, 3:4, :) = gracePlmt(:, 3:4, :) - giaPlmt(:, 3:4, :);
-    [landloadingPlmt, Kocean] = localise(gracePlmt, oceanDomain, L, "Inverse", true);
+    graceSpht(:, 3:4, :) = graceSpht(:, 3:4, :) - giaSdSpht(:, 3:4, :);
+    [forcingSpht, Kocean] = localise(graceSpht, oceanDomain, L, "Inverse", true);
     Kocean = eye(size(Kocean)) - Kocean;
 
     if doGiaFeedback
-        landloadingPlmt(:, 3:4, :) = landloadingPlmt(:, 3:4, :) + giaPlmt(:, 3:4, :);
+        giaGeoidSpht = gia2plmt(time, giaModel, L, "OutputFormat", 'traditional', "OutputField", 'geoid', "BeQuiet", beQuiet);
+        giaVlmSpht = giaz2plmt(time, giaModel, L, "BeQuiet", beQuiet);
+        giaVlmSpht(:, 3:4, :) = giaVlmSpht(:, 3:4, :) / 1000; % mm -> m
+    else
+        giaGeoidSpht = [];
+        giaVlmSpht = [];
     end
 
-    rslPlmt = nan(size(gracePlmt));
+    rslLoadSpht = zeros(size(graceSpht));
 
-    parfor iTime = 1:length(time)
-        rslPlmt(:, :, iTime) = solvesle(squeeze(landloadingPlmt(:, :, iTime)), L, oceanDomain, "Frame", frame, "RotationFeedback", doRotationFeedback, ...
-            "OceanKernel", Kocean, "BeQuiet", true);
+    if doGiaFeedback
+
+        parfor iTime = 1:size(rslLoadSpht, 3)
+            rslLoadSpht(:, :, iTime) = ...
+                solvesle(squeeze(forcingSpht(:, :, iTime)), L, oceanDomain, ...
+                "Frame", frame, "RotationFeedback", doRotationFeedback, ...
+                "GiaGeoidSph", squeeze(giaGeoidSpht(:, :, iTime)), "GiaVlmSph", squeeze(giaVlmSpht(:, :, iTime)), ...
+                "OceanKernel", Kocean, "BeQuiet", true);
+
+        end
+
+    else
+
+        parfor iTime = 1:size(rslLoadSpht, 3)
+            rslLoadSpht(:, :, iTime) = ...
+                solvesle(squeeze(forcingSpht(:, :, iTime)), L, oceanDomain, ...
+                "Frame", frame, "RotationFeedback", doRotationFeedback, ...
+                "OceanKernel", Kocean, "BeQuiet", true);
+
+        end
+
     end
 
     %% Saving and returning data
     if saveData
-        save(filepath, 'rslPlmt', 'time');
+        rslLoadTspht = rslLoadSpht(:, 3:4, :);
+        save(filepath, 'rslLoadTspht', 'time');
 
         if ~beQuiet
             fprintf('%s saved %s\n', upper(mfilename), filepath);
@@ -153,8 +197,13 @@ function [rslPlmt, time] = grace2fingerprint(varargin)
 
     end
 
+    if ~isempty(timelim)
+        rslLoadSpht = rslLoadSpht(:, :, time >= timelim(1) & time <= timelim(2));
+        time = time(time >= timelim(1) & time <= timelim(2));
+    end
+
     if ~isempty(Loutput) && Loutput < L
-        rslPlmt = rslPlmt(1:addmup(Loutput), :, :);
+        rslLoadSpht = rslLoadSpht(1:addmup(Loutput), :, :);
     end
 
 end

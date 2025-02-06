@@ -43,6 +43,14 @@
 %		The input can be in DATENUM or DATETIME format.
 %   L - Maximum degree of the GIA model
 %		If empty, the model is not truncated.
+%   OutputField - Field to output
+%       - 'massdensity': Surface mass density
+%       - 'geoid': Geoid change
+%       The default field is 'massdensity'.
+%   OutputFormat - Format of the output
+%       - 'timefirst': The first dimension is time
+%       - 'traditional': The first dimension is degree
+%		The default format is 'timefirst'.
 %   BeQuiet - Whether to surpress output messages
 %		The default option is false.
 %
@@ -81,23 +89,26 @@
 %   Steffen, H. (2021). Surface Deformations from Glacial Isostatic
 %       Adjustment Models with Laterally Homogeneous, Compressible Earth
 %       Structure (1.0) [dataset]. Zenodo. doi: 10.5281/zenodo.5560862.
-%   Steffen, H., Li, T., Wu, P., Gowan, E. J., Ivins, E., Lecavalier, B., 
-%       Tarasov, L., Whitehouse, P. L. (2021). LM17.3 - a global vertical 
-%       land motion model of glacial isostatic adjustment [dataset]. 
+%   Steffen, H., Li, T., Wu, P., Gowan, E. J., Ivins, E., Lecavalier, B.,
+%       Tarasov, L., Whitehouse, P. L. (2021). LM17.3 - a global vertical
+%       land motion model of glacial isostatic adjustment [dataset].
 %       PANGAEA, doi: 10.1594/PANGAEA.932462
 %
 % Last modified by
+%   2025/02/05, williameclee@arizona.edu (@williameclee)
 %   2024/10/03, williameclee@arizona.edu (@williameclee)
 %   2024/08/20, williameclee@arizona.edu (@williameclee)
 
 function varargout = gia2plmt(varargin)
     %% Initialisation
-    [time, model, L, beQuiet] = parseinputs(varargin{:});
+    [time, model, L, outputField, outputFormat, beQuiet] = parseinputs(varargin{:});
 
     %% Loading the model
     % Load this data (saved as lmcosiM)
     inputPath = finddatafile(model);
+    warning('off', 'MATLAB:load:variableNotFound');
     load(inputPath, 'lmcosiM', 'lmcosiU', 'lmcosiL');
+    lmcosiM(1, 3) = 0; % Ensure the mean is zero
 
     if ~beQuiet
         fprintf('%s loaded model %s\n', upper(mfilename), inputPath);
@@ -108,15 +119,45 @@ function varargout = gia2plmt(varargin)
     %% Some additional processing
     % Truncate the model to the desired degree
     if ~isempty(L)
-        lmcosiM = lmcosiM(1:addmup(L), :);
+
+        if size(lmcosiM, 1) < addmup(L)
+            warning('SLEPIAN:gia2plmt:truncation', ...
+                'Model %s resolution lower than the required degree %d', model, L);
+            [lmcosiM(1:addmup(L), 2), lmcosiM(1:addmup(L), 1)] = addmon(L);
+        else
+            lmcosiM = lmcosiM(1:addmup(L), :);
+        end
 
         if hasBounds
-            lmcosiU = lmcosiU(1:addmup(L), :);
-            lmcosiL = lmcosiL(1:addmup(L), :);
+
+            if size(lmcosiU, 1) < addmup(L) || size(lmcosiL, 1) < addmup(L)
+                [lmcosiU(1:addmup(L), 2), lmcosiU(1:addmup(L), 1)] = addmon(L);
+                [lmcosiL(1:addmup(L), 2), lmcosiL(1:addmup(L), 1)] = addmon(L);
+            else
+                lmcosiU = lmcosiU(1:addmup(L), :);
+                lmcosiL = lmcosiL(1:addmup(L), :);
+            end
+
         end
 
     end
 
+    % Surface mass density or geoid height
+    switch outputField
+        case 'massdensity'
+            % Do nothing
+        case 'geoid'
+            % Convert to geoid height
+            lmcosiM = plm2pot(lmcosiM, [], [], [], 5);
+
+            if hasBounds
+                lmcosiU = plm2pot(lmcosiU, [], [], [], 5);
+                lmcosiL = plm2pot(lmcosiL, [], [], [], 5);
+            end
+
+    end
+
+    % Time
     if isempty(time) || isscalar(time)
         % If time is scalar, interpret it as the day change
         if isempty(time)
@@ -150,6 +191,13 @@ function varargout = gia2plmt(varargin)
     end
 
     %% Collecting outputs
+    switch outputFormat
+        case 'timefirst'
+            % Do nothing
+        case 'traditional'
+            GIAt = permute(GIAt, [2, 3, 1]);
+    end
+
     if ~hasBounds
         GIAtU = [];
         GIAtL = [];
@@ -157,6 +205,16 @@ function varargout = gia2plmt(varargin)
         if nargout > 1
             warning('SLEPIAN:gia2plmt:noBoundsToReturn', ...
             'Upper and lower bounds are not available for this model');
+        end
+
+    else
+
+        switch outputFormat
+            case 'timefirst'
+                % Do nothing
+            case 'traditional'
+                GIAtU = permute(GIAtU, [2, 3, 1]);
+                GIAtL = permute(GIAtL, [2, 3, 1]);
         end
 
     end
@@ -168,7 +226,7 @@ function varargout = gia2plmt(varargin)
     end
 
     %% Plotting
-    plotgiamap(GIAt, time, deltaYear, model)
+    plotgiamap(GIAt, time, deltaYear, model, outputField)
 end
 
 %% Subfunctions
@@ -190,12 +248,16 @@ function varargout = parseinputs(varargin)
     addOptional(p, 'L', [], ...
         @(x) isnumeric(x) || isempty(x));
     addParameter(p, 'BeQuiet', false, @(x) islogical(x) || isnumeric(x));
+    addParameter(p, 'OutputField', 'massdensity', @(x) ischar(validatestring(x, {'massdensity', 'geoid'})));
+    addParameter(p, 'OutputFormat', 'timefirst', @(x) ischar(validatestring(x, {'timefirst', 'traditional'})));
 
     parse(p, varargin{:});
     time = p.Results.Time;
     model = conddefval(p.Results.Model, modelD);
     L = p.Results.L;
     beQuiet = p.Results.BeQuiet;
+    outputField = p.Results.OutputField;
+    outputFormat = p.Results.OutputFormat;
 
     if isdatetime(time)
         time = datenum(time); %#ok<DATNM>
@@ -213,13 +275,17 @@ function varargout = parseinputs(varargin)
 
     end
 
-    varargout = {time, model, L, beQuiet};
+    if ismember(lower(model), {'ice6gd', 'ice6g_d', 'ice6g-d', 'ice-6g\_d', 'ice6g\_d'})
+        model = 'ICE-6G_D';
+    end
+
+    varargout = {time, model, L, outputField, outputFormat, beQuiet};
 
 end
 
 function inputPath = finddatafile(model)
 
-    if exist(model, 'file') == 2
+    if isfile(model)
         inputPath = model;
         return
     end
@@ -234,7 +300,7 @@ function inputPath = finddatafile(model)
 
     if strncmp(model, 'Morrow', 6)
         inputFolder = fullfile(inputFolder, model(1:6));
-    elseif strncmp(model, 'Steffen', 7)
+    elseif strncmpi(model, 'Steffen', 7)
         inputFolder = fullfile(inputFolder, 'SteffenGrids');
     elseif strcmp(model, 'LM17.3')
         inputFolder = fullfile(inputFolder, 'LM17.3');
@@ -253,6 +319,7 @@ function inputPath = finddatafile(model)
     if exist(inputPath, 'file') ~= 2
 
         if strcmp(model, 'LM17.3')
+
             if exist(fullfile(inputFolder, 'LM17.3_0.5x0.5_geoid_globe.txt'), 'file')
                 lm17_Sd(inputFolder, inputPath);
             else
@@ -280,7 +347,7 @@ function plmt = plm2plmt(plm, deltaYear)
 
 end
 
-function plotgiamap(GIAt, time, deltaYear, model)
+function plotgiamap(GIAt, time, deltaYear, model, outputField)
     % Get the change rate
     if isempty(deltaYear)
         deltaYear = 1;
@@ -312,8 +379,15 @@ function plotgiamap(GIAt, time, deltaYear, model)
 
     title(sprintf('Model: %s', model))
 
+    switch outputField
+        case 'massdensity'
+            cLabel = 'Surface mass density [kg/m^2]';
+        case 'geoid'
+            cLabel = 'Geoid rate [m/s]';
+    end
+
     [~, cLevels] = loadcbar(cLim, cStep, ...
-        "Title", 'GIA change [kg/m^2]', ...
+        "Title", cLabel, ...
         "Colormap", 'temperature anomaly');
 
     hold on

@@ -9,14 +9,14 @@
 %
 % Input arguments
 %   eigfun - The eigenfunctions
-%       This can be either the G you get from GLMALPHA or a cell array of 
+%       This can be either the G you get from GLMALPHA or a cell array of
 %       the functions as in LOCALIZATION.
 %   domain - The region
 %       Can be formatted multiple ways as in GLMALPHA
 %   J - How many functions you want to do this for
 %       The default is all of them
 %   phi, theta - Longitude and colatitude of the centre in degrees
-%       There is no omega here because a rotation of the polar cap 
+%       There is no omega here because a rotation of the polar cap
 %       functions does not affect their integration
 %
 % Output arguments
@@ -30,6 +30,7 @@
 %   The function is not properly tested yet.
 %
 % Last modified by
+%   2025/02/05, williameclee@arizona.edu (@williameclee)
 %   2024/08/15, williameclee@arizona.edu (@williameclee)
 %   2016/11/01, charig@email.arizona.edu (@harig00)
 
@@ -56,6 +57,7 @@ function varargout = integratebasis_new(varargin)
         [~, ~, ~, lmcosi, ~, ~, ~, ~, ~, ronm] = addmon(L);
         % Collect the eigenvector output into a format that PLM2XYZ knows
         % how to interpret
+
         for j = 1:J
             % Create the blanks
             cosi = lmcosi(:, 3:4);
@@ -92,14 +94,14 @@ function varargout = integratebasis_new(varargin)
             if ~isempty(J)
 
                 try
-                    eigfunINT = eigfunINT(1:round(J));
+                    eigfunINT = eigfunINT(1:ceil(J));
+                    varargout = {eigfunINT};
+                    return
                 catch
                 end
 
             end
 
-            varargout = {eigfunINT};
-            return
         end
 
     end
@@ -159,8 +161,18 @@ function varargout = integratebasis_new(varargin)
     end
 
     % Run parallel if possible
-    parfor h = 1:J
-        eigfunINT(h) = plm2avg(eigfun{h}, XY);
+    if exist('eigfunINT', 'var')
+
+        parfor h = length(eigfunINT) + 1:J
+            eigfunINT(h) = plm2avg(eigfun{h}, XY);
+        end
+
+    else
+
+        parfor h = 1:J
+            eigfunINT(h) = plm2avg(eigfun{h}, XY);
+        end
+
     end
 
     %% Returning requested outpput
@@ -256,9 +268,9 @@ function [filePath, fileExists] = getoutputfile(domain, L)
         fprintf('%s created folder %s to store data\n', ...
             upper(mfilename), dataFolder);
     end
-    
+
     fileName = sprintf('EIGFUNINT-%s-%d.mat', domain.Id, L);
 
     filePath = fullfile(dataFolder, fileName);
-    fileExists = exist(filePath, 'file') == 2;
+    fileExists = isfile(filePath);
 end

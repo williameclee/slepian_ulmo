@@ -45,9 +45,6 @@
 
 function varargout = slep2xyz(slep, domain, varargin)
     %% Initialisation
-    % Add path to the auxiliary functions
-    addpath(fullfile(fileparts(mfilename('fullpath')), 'demos'));
-
     % Demos
     if ischar(slep) || isstring(slep)
         demoId = slep;
@@ -61,12 +58,17 @@ function varargout = slep2xyz(slep, domain, varargin)
     end
 
     % Parsing inputs
-    [slep, domain, L, lp, meshSize, truncation, beQuiet] = ...
+    [slep, domain, L, lp, meshSize, truncation, gaussianSize, beQuiet] = ...
         parseinputs(slep, domain, varargin{:});
 
     %% Computing the mesh
     [lmcosi, V, N] = slep2plm_new(slep, domain, L, "Truncation", truncation);
     lmcosi = lmcosi(lmcosi(:, 1) <= lp, :);
+
+    if gaussianSize > 0
+        lmcosi = sphgaussfilt(lmcosi, gaussianSize);
+    end
+
     [mesh, lon, lat] = plm2xyz(lmcosi, meshSize, "BeQuiet", beQuiet);
 
     %% Collecting output
@@ -84,6 +86,7 @@ function varargout = parseinputs(varargin)
     addOptional(p, 'MeshSize', 1, @isnumeric);
     addOptional(p, 'Truncation', [], @isnumeric);
     addOptional(p, 'LowPass', [], @isnumeric);
+    addParameter(p, 'Gaussian', 0, @isnumeric);
     addParameter(p, 'BeQuiet', false, @islogical);
     parse(p, varargin{:});
     slep = p.Results.SlepianCoefficient;
@@ -91,6 +94,7 @@ function varargout = parseinputs(varargin)
     L = p.Results.L;
     meshSize = p.Results.MeshSize;
     truncation = p.Results.Truncation;
+    gaussianSize = p.Results.Gaussian;
     beQuiet = p.Results.BeQuiet;
     lp = p.Results.LowPass;
 
@@ -111,11 +115,15 @@ function varargout = parseinputs(varargin)
     % Check if L is valid
     Ldata = sqrt(length(slep)) - 1;
 
+    if floor(Ldata) ~= L
+        error('Invalid input size')
+    end
+
     if L > Ldata
         warning('L is larger than the data supports. Setting L to %d.', Ldata);
     end
 
     L = min(L, Ldata);
 
-    varargout = {slep, domain, L, lp, meshSize, truncation, beQuiet};
+    varargout = {slep, domain, L, lp, meshSize, truncation, gaussianSize, beQuiet};
 end

@@ -1,3 +1,24 @@
+%% SPHGAUSSFILT
+% Applys a Gaussian filter to a spherical harmonic field.
+%
+% Syntax
+%   Plm = sphgaussfilt(Plm, sigma)
+%   Plm = sphgaussfilt(Plm, sigma, unit)
+%
+% Input arguments
+%   Plm - Spherical harmonic coefficients
+%   sigma - Standard deviation of the Gaussian filter
+%   unit - Unit of the standard deviation
+%       'degree' - The standard deviation is in degrees
+%       'radian' - The standard deviation is in radians
+%       The default unit is 'degree'
+%
+% Output arguments
+%   Plm - Filtered spherical harmonic coefficients
+%
+% Last modified by
+%   2024/11/20, williameclee@arizona.edu (@williameclee)
+
 function Plm = sphgaussfilt(Plm, varargin)
     ip = inputParser;
     addRequired(ip, 'Plm', @(x) (isnumeric(x) && size(x, 2) == 4));

@@ -1,6 +1,6 @@
 %% GIAZ2PLMT
 % Reads the vertical displacement provided by a GIA model and converts it
-% to the spheircal harmonic format.
+% to the spheircal harmonic format in mm.
 %
 % Syntax
 %   plm = gia2plmt(model, L)
@@ -54,6 +54,7 @@
 %       PANGAEA, doi: 10.1594/PANGAEA.932462
 %
 % Last modified by
+%   2025/02/05, williameclee@arizona.edu (@williameclee)
 %   2024/10/03, williameclee@arizona.edu (@williameclee)
 %   2024/09/12, williameclee@arizona.edu (@williameclee)
 
@@ -64,8 +65,7 @@ function varargout = giaz2plmt(varargin)
 
     % Loading the model
     if contains(model, 'Steffen')
-        [wXY, ~, ~] = findsteffendata(model);
-        wPlmt = xyz2plm_new(wXY, L, "BeQuiet", beQuiet);
+        wPlmt = findsteffendata(model);
         wUPlmt = [];
         wLPlmt = [];
     elseif strcmp(model, 'LM17.3')
@@ -83,6 +83,30 @@ function varargout = giaz2plmt(varargin)
         wLPlmt = lmcosiL(lmcosiL(:, 1) <= L, :);
     else
         error('Unrecognised model name %s', upper(model));
+    end
+
+    if size(wPlmt, 1) < addmup(L) || ...
+            (~isempty(wUPlmt) && size(wUPlmt, 1) < addmup(L)) || ...
+            (~isempty(wLPlmt) && size(wLPlmt, 1) < addmup(L))
+        warning('Model %s resolution lower than the required degree %d', model, L);
+    end
+
+    if size(wPlmt, 1) < addmup(L)
+        [order, degree] = addmon(L);
+        wPlmt(1:addmup(L), 1) = degree;
+        wPlmt(1:addmup(L), 2) = order;
+    end
+
+    if ~isempty(wUPlmt) && size(wUPlmt, 1) < addmup(L)
+        [order, degree] = addmon(L);
+        wUPlmt(1:addmup(L), 1) = degree;
+        wUPlmt(1:addmup(L), 2) = order;
+    end
+
+    if ~isempty(wLPlmt) && size(wLPlmt, 1) < addmup(L)
+        [order, degree] = addmon(L);
+        wLPlmt(1:addmup(L), 1) = degree;
+        wLPlmt(1:addmup(L), 2) = order;
     end
 
     %% Converting the model
@@ -178,9 +202,9 @@ function varargout = parseinputs(varargin)
 
 end
 
-function [wXY, lon, lat] = findsteffendata(model)
+function plm = findsteffendata(model)
     %% Finding the model data
-    if exist(model, 'file') == 2
+    if isfile(model)
         % If the model is a path, load it directly
         inputPath = model;
     else
@@ -216,10 +240,15 @@ function [wXY, lon, lat] = findsteffendata(model)
     end
 
     %% Loading the model
-    load(inputPath, 'x', 'y', 'z');
-    lon = x;
-    lat = flip(y);
-    wXY = flip(z');
+    load(inputPath, 'z', 'plm');
+
+    if exist('plm', 'var')
+        return
+    else
+        plm = xyz2plm_new(flip(z'), 96, "BeQuiet", true);
+        save(inputPath, 'plm', '-append');
+    end
+
 end
 
 function plmt = plm2plmt(plm, multplicationFactor)
