@@ -5,21 +5,29 @@
 % TODO:
 % 	- Make plot
 %
+% Data Source:
+%   - NOAA Global Ocean Heat and Salt Content: Seasonal, Yearly, and Pentadal Fields
+%       https://www.ncei.noaa.gov/access/global-ocean-heat-content/
+%
 % Authored by
 %   2025/02/13, williameclee@arizona.edu (@williameclee)
+%
+% Last modified by
+%   2025/02/14, williameclee@arizona.edu (@williameclee)
 
 function varargout = steric2plmt(varargin)
     %% Initialisation
-    [pcentre, product, L, timelim, beQuiet, outputFormat] = parseinputs(varargin{:});
+    [pcentre, product, L, timelim, forceNew, saveData, beQuiet, outputFormat] ...
+        = parseinputs(varargin{:});
 
     %% Loading the model
     % Load this data (saved as lmcosiM)
-    [inputSphtPath, inputExists] = finddatafile(pcentre, product, 'spht');
+    [inputSphtPath, inputExists] = findoutputfile(pcentre, product, L);
 
-    if inputExists
-        load(inputSphtPath, 'stericSpht', 'time');
+    if inputExists && ~forceNew
+        load(inputSphtPath, 'stericSpht', 'time', 'hasData');
     else
-        [inputLonlattPath, inputExists] = finddatafile(pcentre, product, 'lonlatt');
+        [inputLonlattPath, inputExists] = findinputfile(pcentre, product);
 
         if ~inputExists
             error('Model %s not found\nIt should be kept at %s', ...
@@ -27,14 +35,29 @@ function varargout = steric2plmt(varargin)
         end
 
         load(inputLonlattPath, 'steric', 'time');
+        hasData = true(size(time));
+
+        if size(steric, 1) > size(steric, 2)
+            steric = permute(steric, [2, 1, 3]);
+        end
 
         stericSpht = zeros([addmup(L), 4, length(time)]);
 
         for iTime = 1:length(time)
-            stericSpht(:, :, iTime) = xyz2plm_new(steric(:, :, iTime), L, "BeQuiet", beQuiet);
+
+            if any(isnan(steric(:, :, iTime)), 'all')
+                hasData(iTime) = false;
+                continue
+            end
+
+            stericSpht(:, :, iTime) = ...
+                xyz2plm_new(steric(:, :, iTime), L, "BeQuiet", beQuiet >= 1);
         end
 
-        save(inputSphtPath, 'stericSpht', 'time')
+        if saveData
+            save(inputSphtPath, 'stericSpht', 'time', 'hasData')
+        end
+
     end
 
     %% Collecting outputs
@@ -42,6 +65,7 @@ function varargout = steric2plmt(varargin)
         isValidTime = time >= timelim(1) & time <= timelim(2);
         time = time(isValidTime);
         stericSpht = stericSpht(:, :, isValidTime);
+        hasData = hasData(isValidTime);
     end
 
     switch outputFormat
@@ -51,13 +75,22 @@ function varargout = steric2plmt(varargin)
             % Do nothing
     end
 
-    varargout = {stericSpht, time};
+    varargout = {stericSpht, time, hasData};
 
     if nargout > 0
         return
     end
 
     %% Plotting
+    [stericLonlat, lon, lat] = plm2xyz(stericSpht(:, :, end), "BeQuiet", beQuiet);
+    figure(999)
+    clf
+
+    contourf(lon, lat, stericLonlat)
+    colorbar
+    axis equal
+    xlim([0, 360])
+    ylim([-90, 90])
 end
 
 %% Subfunctions
@@ -76,7 +109,9 @@ function varargout = parseinputs(varargin)
         @(x) isnumeric(x) || isempty(x));
     addOptional(p, 'TimeRange', [], ...
         @(x) (isnumeric(x) || isdatetime(x) && length(x) == 2) || isempty(x));
-    addParameter(p, 'BeQuiet', false, @(x) islogical(x) || isnumeric(x));
+    addParameter(p, 'ForceNew', false, @(x) islogical(x) || isnumeric(x));
+    addParameter(p, 'SaveData', true, @(x) islogical(x) || isnumeric(x));
+    addParameter(p, 'BeQuiet', 0.5, @(x) islogical(x) || isnumeric(x));
     addParameter(p, 'OutputFormat', 'traditional', @(x) ischar(validatestring(x, {'timefirst', 'traditional'})));
 
     parse(p, varargin{:});
@@ -84,16 +119,18 @@ function varargout = parseinputs(varargin)
     product = conddefval(p.Results.Product, productD);
     L = conddefval(p.Results.L, LD);
     timelim = p.Results.TimeRange;
-    beQuiet = p.Results.BeQuiet;
+    forceNew = uint8(p.Results.ForceNew * 2);
+    saveData = logical(p.Results.SaveData);
+    beQuiet = logical(p.Results.BeQuiet);
     outputFormat = p.Results.OutputFormat;
 
     product = lower(product);
 
-    varargout = {pcentre, product, L, timelim, beQuiet, outputFormat};
+    varargout = {pcentre, product, L, timelim, forceNew, saveData, beQuiet, outputFormat};
 
 end
 
-function [inputPath, inputExists] = finddatafile(pcentre, product, format)
+function [inputPath, inputExists] = findinputfile(pcentre, product)
 
     if ~isempty(getenv('STERIC'))
         inputFolder = getenv('STERIC');
@@ -103,20 +140,30 @@ function [inputPath, inputExists] = finddatafile(pcentre, product, format)
         error('Steric sea level folder not found')
     end
 
-    inputFile = sprintf('%s-%s-%s.mat', pcentre, product, format);
+    inputFile = sprintf('%s-%s-lonlatt.mat', pcentre, product);
     inputPath = fullfile(inputFolder, inputFile);
 
     inputExists = exist(inputPath, 'file');
 
 end
 
-function plmt = plm2plmt(plm, deltaYear)
-    plmt = zeros([length(deltaYear), size(plm)]);
+function [inputPath, inputExists] = findoutputfile(pcentre, product, L)
 
-    plmt(:, :, 1:2) = repmat(reshape( ...
-        plm(:, 1:2), [1, length(plm), 2]), [length(deltaYear), 1, 1]);
-    plmt(:, :, 3:4) = ...
-        deltaYear(:) .* reshape(plm(:, 3:4), [1, length(plm), 2]);
-    plmt = squeeze(plmt);
+    if ~isempty(getenv('STERIC'))
+        inputFolder = fullfile(getenv('STERIC'), 'SPH');
+    elseif ~isempty(getenv('IFILES'))
+        inputFolder = fullfile(getenv('IFILES'), 'STERIC', 'SPH');
+    else
+        error('Steric sea level folder not found')
+    end
+
+    if ~exist(inputFolder, 'dir')
+        mkdir(inputFolder)
+    end
+
+    inputFile = sprintf('%s-%s-L%d.mat', pcentre, product, L);
+    inputPath = fullfile(inputFolder, inputFile);
+
+    inputExists = exist(inputPath, 'file');
 
 end

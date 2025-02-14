@@ -63,9 +63,6 @@
 
 function varargout = plm2xyz(varargin)
     %% Initialisation
-    % Add path to the auxiliary functions
-    addpath(fullfile(fileparts(mfilename('fullpath')), 'demos'));
-
     % Demos
     if ischar(varargin{1}) || isstring(varargin{1})
         varargout = rundemos(varargin{:});
@@ -86,12 +83,10 @@ function varargout = plm2xyz(varargin)
     lmin = lmcosi(1);
     % Highest degree (bandwidth of the expansion)
     L = lmcosi(end, 1);
-    % Never use Libbrecht algorithm... found out it wasn't that good
-    libb = false;
     % Default resolution is the Nyquist degree; return equal sampling in
     % longitude and latitude; sqrt(L*(L+1)) is equivalent wavelength
-    degN = 180 / sqrt(L * (L + 1));
-    meshSize = conddefval(meshSize, degN);
+    maxMeshSize = 180 / sqrt(L * (L + 1));
+    meshSize = conddefval(meshSize, maxMeshSize);
 
     % When do you get a task bar?
     taskmax = 100;
@@ -119,10 +114,10 @@ function varargout = plm2xyz(varargin)
 
     elseif isscalar(meshSize) && length(c11cmn) == 4
         % It's a grid
-        if meshSize > degN && ~beQuiet
+        if meshSize > maxMeshSize && ~beQuiet
             disp('PLM2XYZ: You can do better! Ask for more spatial resolution')
             fprintf('Spatial sampling ALLOWED: %8.3f ; REQUESTED: %6.3f\n', ...
-                degN, meshSize)
+                maxMeshSize, meshSize)
         end
 
         % The number of longitude and latitude grid points that will be computed
@@ -180,17 +175,17 @@ function varargout = plm2xyz(varargin)
         ldown = els(ldeg, 1);
         lup = els(ldeg, 2);
         % Construct the filename
-        fnpl = sprintf('%s/LSSM-%i-%i-%i.mat', ...
-            fullfile(getenv('IFILES'), 'LEGENDRE'), ...
-            ldown, lup, nLat);
+        putputFolder = fullfile(getenv('IFILES'), 'LEGENDRE');
+        outputFile = sprintf('LSSM-%i-%i-%i.mat', ldown, lup, nLat);
+        outputPath = fullfile(putputFolder, outputFile);
         % ONLY COMPLETE LINEARLY SPACED SAMPLED VECTORS ARE TO BE SAVED!
-        if (exist(fnpl, 'file') == 2 && length(c11cmn) == 4 && all(c11cmn == [0 90 360 -90])) ...
+        if (isfile(outputPath) && isequal(c11cmn, [0, 90, 360, -90])) ...
                 && ~(size(els, 1) == 1 && ~isempty(Plm))
             % Get Legendre function values at linearly spaced intervals
-            load(fnpl) %#ok<LOAD>
+            load(outputPath) %#ok<LOAD>
 
             if ~beQuiet
-                fprintf('%s loaded %s\n', upper(mfilename), fnpl)
+                fprintf('%s loaded %s\n', upper(mfilename), outputPath)
             end
 
             % AND TYPICALLY ANYTHING ELSE WOULD BE PRECOMPUTED, BUT THE GLOBAL
@@ -216,11 +211,8 @@ function varargout = plm2xyz(varargin)
             % Always start from the beginning in this array, regardless of lmin
             for l = ldown:lup
 
-                if libb
-                    Plm(:, in1 + 1:in2) = (libbrecht(l, cos(theta(:)'), 'sch') * sqrt(2 * l + 1))'; %#ok<UNRCH>
-                else
-                    Plm(:, in1 + 1:in2) = (legendre(l, cos(theta(:)'), 'sch') * sqrt(2 * l + 1))';
-                end
+                % Never use Libbrecht algorithm... found out it wasn't that good
+                Plm(:, in1 + 1:in2) = (legendre(l, cos(theta(:)'), 'sch') * sqrt(2 * l + 1))';
 
                 in1 = in2;
                 in2 = in1 + l + 2;
@@ -235,16 +227,16 @@ function varargout = plm2xyz(varargin)
                 delete(h)
             end
 
-            if length(c11cmn) == 4 && all(c11cmn == [0 90 360 -90])
+            if length(c11cmn) == 4 && isequal(c11cmn, [0, 90, 360, -90])
 
                 try
-                    save(fnpl, 'Plm', '-v7.3')
+                    save(outputPath, 'Plm', '-v7.3')
                 catch
-                    save(fnpl, 'Plm')
+                    save(outputPath, 'Plm')
                 end
 
                 if ~beQuiet
-                    fprintf('%s saved %s\n', upper(mfilename), fnpl)
+                    fprintf('%s saved %s\n', upper(mfilename), outputPath)
                 end
 
             end
@@ -290,7 +282,7 @@ function varargout = plm2xyz(varargin)
                 f = (plm .* plm)' .* repmat(sin(theta(:)), 1, l + 1);
                 c = (cos(mphi) .* cos(mphi))';
                 ntest = simpson(theta, f) .* simpson(phi, c) / 4 / pi;
-                fprintf('Mean Normalization Error l= %3.3i: %8.3e\n', ...
+                fprintf('Mean normalisation error l= %3.3i: %8.3e\n', ...
                     l, (sum(abs(1 - ntest))) / (l + 1))
                 % For a decent test you would use "legendreprodint"
             end
@@ -369,7 +361,7 @@ function varargout = parseinputs(varargin)
     LmaxD = 720;
     latmaxD = Inf;
     p = inputParser;
-    addRequired(p, 'lmcosi', @(x) isnumeric(x) && ismatrix(x));
+    addRequired(p, 'lmcosi', @(x) isnumeric(x));
     addOptional(p, 'MeshSize', meshSizeD, ...
         @(x) (isnumeric(x) && isscalar(x)) || isempty(x));
     addOptional(p, 'c11cmn', c11cmnD, ...

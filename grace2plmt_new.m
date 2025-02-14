@@ -51,19 +51,20 @@
 %
 % See also
 %   GRACEDEG1, GRACEDEG2, PLM2POT
-%
+%   
 % Last modified by
+%   2025/02/14, williameclee@arizona.edu (@williameclee)
 %   2024/08/20, williameclee@arizona.edu (@williameclee)
 %   2022/05/18, charig@email.arizona.edu (@charig)
 %   2020/11/09, lashokkumar@arizona.edu
 %   2019/03/18, mlubeck@email.arizona.edu
 %   2011/05/17, fjsimons@alum.mit.edu (@fjsimons)
 
-function varargout = grace2plmt_new(Pcenter, Rlevel, varargin)
+function varargout = grace2plmt_new(varargin)
     %% Initialisation
     % Parse inputs
-    [Pcenter, Rlevel, Ldata, unit, forceNew, deg1corr, c20corr, c30corr] = ...
-        parseinputs(Pcenter, Rlevel, varargin{:});
+    [Pcenter, Rlevel, Ldata, unit, forceNew, beQuiet, outputFormat, deg1corr, c20corr, c30corr] = ...
+        parseinputs(varargin{:});
 
     % Find the coefficient files
     [inputFolder, outputPath] = getIOfile( ...
@@ -71,9 +72,13 @@ function varargout = grace2plmt_new(Pcenter, Rlevel, varargin)
 
     % If this file already exists, load it.  Otherwise, or if we force it, make
     % a new one (e.g. you added extra months to the database).
-    if exist(outputPath, 'file') == 2 && forceNew == 0
+    if isfile(outputPath) && forceNew == 0
+        warning('off', 'MATLAB:load:variableNotFound');
         load(outputPath, 'potcoffs', 'calerrors', 'date', 'thedates')
-        fprintf('%s loaded %s\n', upper(mfilename), outputPath)
+
+        if ~beQuiet
+            fprintf('%s loaded %s\n', upper(mfilename), outputPath)
+        end
 
         if ~exist('calerrors', 'var')
             calerrors = [];
@@ -81,6 +86,13 @@ function varargout = grace2plmt_new(Pcenter, Rlevel, varargin)
 
         if ~exist('dates', 'var') && exist('thedates', 'var')
             date = thedates;
+        end
+
+        switch outputFormat
+            case 'timefirst'
+                % Do nothing
+            case 'traditional'
+                potcoffs = permute(potcoffs, [2, 3, 1]);
         end
 
         varargout = {potcoffs, calerrors, date};
@@ -490,8 +502,13 @@ function varargout = grace2plmt_new(Pcenter, Rlevel, varargin)
     save(outputPath, 'potcoffs', 'calerrors', 'date');
 
     % Collect output
-    % Here we have "thedates" twice so that we don't break older code. But in
-    % the future we will fix this so that we only have the two output
+    switch outputFormat
+        case 'timefirst'
+            % Do nothing
+        case 'traditional'
+            potcoffs = permute(potcoffs, [2, 3, 1]);
+    end
+
     varargout = {potcoffs, calerrors, date};
 end
 
@@ -508,9 +525,12 @@ function varargout = parseinputs(varargin)
         @(x) ischar(validatestring(x, {'POT', 'SD'})));
     addOptional(p, 'ForceNew', false, ...
         @(x) isnumeric(x) || islogical(x));
+    addOptional(p, 'BeQuiet', false, ...
+        @(x) isnumeric(x) || islogical(x));
     addParameter(p, 'Deg1Correction', true, @islogical);
     addParameter(p, 'C20Correction', true, @islogical);
     addParameter(p, 'C30Correction', true, @islogical);
+    addParameter(p, 'OutputFormat', 'timefirst', @(x) ischar(validatestring(x, {'timefirst', 'traditional'})));
     parse(p, varargin{:});
 
     Pcenter = p.Results.Pcenter;
@@ -518,11 +538,13 @@ function varargout = parseinputs(varargin)
     Ldata = p.Results.Ldata;
     unit = p.Results.Unit;
     forcenew = logical(p.Results.ForceNew);
+    beQuiet = logical(p.Results.BeQuiet);
     deg1correction = p.Results.Deg1Correction;
     c20correction = p.Results.C20Correction;
     c30correction = p.Results.C30Correction;
+    outputFormat = p.Results.OutputFormat;
 
-    varargout = {Pcenter, Rlevel, Ldata, unit, forcenew, ...
+    varargout = {Pcenter, Rlevel, Ldata, unit, forcenew, beQuiet, outputFormat, ...
                      deg1correction, c20correction, c30correction};
 end
 
@@ -570,7 +592,7 @@ function varargout = getIOfile(Pcenter, Rlevel, Ldata, unit, ...
 
     outputPath = fullfile(outputFolder, outputFile);
 
-    if ~exist('outputPath', 'file') == 2 && ~exist('inputFolder', 'dir') == 2
+    if ~isfile(outputPath) == 2 && ~exist(inputFolder, 'dir') == 2
         error('The data you asked for are not currently stored\nPlease check the input folder %s', inputFolder)
     end
 
