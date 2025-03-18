@@ -75,15 +75,13 @@
 %   PLOTSLEP, PLM2AVG, KERNELC, LEGENDREPRODINT, DLMLMP
 %
 % Last modified by
+%   2025/03/18, williameclee@arizona.edu (@williameclee)
 %   2024/08/15, williameclee@arizona.edu (@williameclee)
 %   2023/11/11, fjsimons@alum.mit.edu (@fjsimons)
 %   2017/05/26, plattner@alumni.ethz.ch (@AlainPlattner)
 %   2016/09/23, charig@princeton.edu (@harig00)
 
 function varargout = kernelcp_new(varargin)
-    % Add path to the auxiliary functions
-    addpath(fullfile(fileparts(mfilename('fullpath')), 'aux'));
-    addpath(fullfile(fileparts(mfilename('fullpath')), 'demos'));
     % Demos
     if ischar(varargin{1}) || isstring(varargin{1}) && ...
             contains(varargin{1}, 'demo')
@@ -505,11 +503,11 @@ function varargout = parseinputs(Inputs)
     addOptional(p, 'rotb', rotbD, ...
         @(x) isnumeric(x) || islogical(x) || isempty(x));
     addParameter(p, 'ForceNew', false, ...
-        @(x) islogical(x));
+        @(x) islogical(x) || isnumeric(x));
     addParameter(p, 'SaveData', true, ...
-        @(x) islogical(x));
+        @(x) islogical(x) || isnumeric(x));
     addParameter(p, 'BeQuiet', false, ...
-        @(x) islogical(x));
+        @(x) islogical(x) || isnumeric(x));
     parse(p, Inputs{:});
 
     Lmax = conddefval(p.Results.Lmax, LmaxD);
@@ -582,8 +580,8 @@ function varargout = getoutputfile(Lmax, domain, pars, rotb)
     outputPath1 = fullfile(outputFolder1, outputName);
     outputPath2 = fullfile(outputFolder2, outputName);
 
-    outputFile1Exists = exist(outputPath1, 'file') == 2;
-    outputFile2Exists = exist(outputPath2, 'file') == 2;
+    outputFile1Exists = exist(outputPath1, 'file');
+    outputFile2Exists = exist(outputPath2, 'file');
 
     varargout = ...
         {outputPath1, outputPath2, outputFile1Exists, outputFile2Exists, ...
