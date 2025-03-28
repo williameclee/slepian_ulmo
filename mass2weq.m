@@ -27,7 +27,7 @@
 %   convFac - Conversion factor from mass to water equivalent
 %
 % Last modified by
-%   2024/08/18, williameclee@arizona.edu (@williameclee)
+%   2024/03/28, williameclee@arizona.edu (@williameclee)
 
 function varargout = mass2weq(varargin)
     %% Initialisation
@@ -76,16 +76,27 @@ function varargout = mass2weq(varargin)
 
     % Convert unit from Gton to kg/m^2 to water equivalent
     convFac = inputUnitConvFac / area / waterDensity * unitConvFac;
-    massWeq = massGton * convFac;
+
+    if iscell(massGton)
+        massWeq = cellfun(@(x) x * convFac, massGton, "UniformOutput", false);
+    else
+        massWeq = massGton * convFac;
+    end
 
     %% Collecting outputs
-    varargout = {massWeq, convFac};
+    if iscell(massGton)
+        varargout = [massWeq(:)', {convFac}];
+    else
+        varargout = {massWeq, convFac};
+    end
+
 end
 
 %% Subfunctions
 function varargout = parseinputs(varargin)
     p = inputParser;
-    addRequired(p, 'Mass', @isnumeric);
+    addRequired(p, 'Mass', ...
+        @(x) isnumeric(x) || (iscell(x) && all(cellfun(@isnumeric, x))));
     addRequired(p, 'Domain', ...
         @(x) ischar(x) || isstring(x) || iscell(x) ...
         || isa(x, 'GeoDomain') || isnumeric(x));

@@ -43,8 +43,7 @@
 %   2024/11/20, williameclee@arizona.edu (@williameclee)
 %
 % Last modified by
-%   2025/02/14, williameclee@arizona.edu (@williameclee)
-%   2025/02/05, williameclee@arizona.edu (@williameclee)
+%   2025/03/28, williameclee@arizona.edu (@williameclee)
 
 function [rslLoadSph, rslLoadLclSph, barystaticSL] = solvesle(forcingSph, varargin)
     %% Initialisation
@@ -53,7 +52,7 @@ function [rslLoadSph, rslLoadLclSph, barystaticSL] = solvesle(forcingSph, vararg
         @(x) isnumeric(x) && ismatrix(x) && (size(x, 2) == 4 || size(x, 2) == 2));
     addOptional(ip, 'L', [], ...
         @(x) (isnumeric(x) && isscalar(x) && x > 0) || isempty(x));
-    addOptional(ip, 'ocean', GeoDomain('alloceans'), ...
+    addOptional(ip, 'Ocean', GeoDomain('alloceans', "Buffer", 0.5), ...
         @(x) isa(x, 'GeoDomain') || (isnumeric(x) && ismatrix(x) && size(x, 2) == 2));
     addOptional(ip, 'frame', 'CF', ...
         @(x) ischar(validatestring(upper(x), {'CM', 'CF'})));
@@ -65,44 +64,59 @@ function [rslLoadSph, rslLoadLclSph, barystaticSL] = solvesle(forcingSph, vararg
         @(x) (isnumeric(x) && ismatrix(x) && (size(x, 2) == 4 || size(x, 2) == 2)) || isempty(x));
     addOptional(ip, 'GiaVlmSph', [], ...
         @(x) (isnumeric(x) && ismatrix(x) && (size(x, 2) == 4 || size(x, 2) == 2)) || isempty(x));
-    addOptional(ip, 'StericSph', [], ...
+    % addOptional(ip, 'StericSph', [], ...
+    %     @(x) (isnumeric(x) && ismatrix(x) && (size(x, 2) == 4 || size(x, 2) == 2)) || isempty(x));
+    addOptional(ip, 'OtherForcingSph', [], ...
         @(x) (isnumeric(x) && ismatrix(x) && (size(x, 2) == 4 || size(x, 2) == 2)) || isempty(x));
     addParameter(ip, 'BeQuiet', false, @(x) islogical(x) || isnumeric(x));
     addParameter(ip, 'OceanKernel', [], @(x) isnumeric(x));
+    addParameter(ip, 'OceanFunction', [], @(x) isnumeric(x));
+    addParameter(ip, 'KernelOrder', [], @(x) isnumeric(x));
     parse(ip, forcingSph, varargin{:});
     forcingSph = squeeze(ip.Results.ForcingSph);
-    giaGeoidSph = squeeze(ip.Results.GiaGeoidSph);
-    giaVlmSph = squeeze(ip.Results.GiaVlmSph);
-    stericSph = squeeze(ip.Results.StericSph);
+    % giaGeoidSph = squeeze(ip.Results.GiaGeoidSph);
+    % giaVlmSph = squeeze(ip.Results.GiaVlmSph);
+    % stericSph = squeeze(ip.Results.StericSph);
+    otherForcingSph = squeeze(ip.Results.OtherForcingSph);
     L = ip.Results.L;
-    ocean = ip.Results.ocean;
+    ocean = ip.Results.Ocean;
     frame = upper(ip.Results.frame);
     doRotationFeedback = ip.Results.RotationFeedback;
     maxIter = ip.Results.maxIter;
     beQuiet = ip.Results.BeQuiet;
     oceanKernel = ip.Results.OceanKernel;
+    oceanFunSph = ip.Results.OceanFunction;
+    kernelOrder = ip.Results.KernelOrder;
 
-    if ~isempty(giaGeoidSph) && ~isempty(giaVlmSph)
-        doGia = true;
+    % if ~isempty(giaGeoidSph) && ~isempty(giaVlmSph)
+    %     doGia = true;
 
-        % Check if the forcing and GIA have the same size
-        if ~isequal(size(forcingSph), size(giaGeoidSph))
-            error('Forcing and GIA geoid deformation must have the same size')
-        end
+    %     % Check if the forcing and GIA have the same size
+    %     if ~isequal(size(forcingSph), size(giaGeoidSph))
+    %         error('Forcing and GIA geoid deformation must have the same size')
+    %     end
 
-        if ~isequal(size(forcingSph), size(giaVlmSph))
-            error('Forcing and GIA VLM must have the same size')
-        end
+    %     if ~isequal(size(forcingSph), size(giaVlmSph))
+    %         error('Forcing and GIA VLM must have the same size')
+    %     end
 
+    % else
+    %     doGia = false;
+    % end
+
+    % if ~isempty(stericSph) && ...
+    %         ~all(stericSph(:, end - 1:end) == 0, "all")
+    %     doSteric = true;
+    %     stericLclSph = localise(stericSph, ocean, L);
+    % else
+    %     doSteric = false;
+    % end
+
+    if ~isempty(otherForcingSph) && ...
+            ~all(otherForcingSph(:, end - 1:end) == 0, "all")
+        doOtherForcing = true;
     else
-        doGia = false;
-    end
-
-    if ~isempty(stericSph) && ~all(stericSph(:, end - 1:end) == 0)
-        doSteric = true;
-        stericLclSph = localise(stericSph, ocean, L);
-    else
-        doSteric = false;
+        doOtherForcing = false;
     end
 
     % Check if the forcing includes degree and order
@@ -116,48 +130,61 @@ function [rslLoadSph, rslLoadLclSph, barystaticSL] = solvesle(forcingSph, vararg
 
         forcingSph = forcingSph(:, 3:4);
 
-        if doGia
-            giaGeoidSph = giaGeoidSph(:, 3:4);
-            giaVlmSph = giaVlmSph(:, 3:4);
-        end
+        % if doGia
+        %     giaGeoidSph = giaGeoidSph(:, 3:4);
+        %     giaVlmSph = giaVlmSph(:, 3:4);
+        % end
 
-        if doSteric
-            stericLclSph = stericLclSph(:, 3:4);
-        end
+        % if doSteric
+        %     stericLclSph = stericLclSph(:, 3:4);
+        % end
 
     elseif isempty(L)
         L = finddegree(forcingSph);
     end
 
-    if doSteric
-        stericLclSph = stericLclSph / 1000; % mm -> m
-    end
+    % if doSteric
+    %     stericLclSph = stericLclSph / 1000; % mm -> m
+    % end
 
     % Truncate the input to the correct degree
     if size(forcingSph, 1) < addmup(L)
         forcingSph(addmup(L), 2) = 0;
-        giaGeoidSph(addmup(L), 2) = 0;
-        giaVlmSph(addmup(L), 2) = 0;
+        %     giaGeoidSph(addmup(L), 2) = 0;
+        %     giaVlmSph(addmup(L), 2) = 0;
     elseif size(forcingSph, 1) > addmup(L)
         forcingSph = forcingSph(1:addmup(L), :);
-        giaGeoidSph = giaGeoidSph(1:addmup(L), :);
+        % giaGeoidSph = giaGeoidSph(1:addmup(L), :);
     end
 
-    if ~beQuiet
-        counterTxt = sprintf('SLE solver progress: Computing ocean function %3d%% (%2d/%2d iterations)', ...
-            0, 0, maxIter);
-        fprintf('%s\n', counterTxt)
-        counterTxtLen = length(counterTxt);
+    if isempty(oceanFunSph)
+
+        if ~beQuiet
+            counterTxt = sprintf('SLE solver progress: Computing ocean function %3d%% (%2d/%2d iterations)', ...
+                0, 0, maxIter);
+            fprintf('%s\n', counterTxt)
+            counterTxtLen = length(counterTxt);
+        end
+
+        [~, ~, ~, ~, ~, oceanFunSph] = geoboxcap(L, ocean, "BeQuiet", true);
+
+        if ~beQuiet
+            counterTxt = sprintf('SLE solver progress: Computed ocean function  %3d%% (%2d/%2d iterations)', ...
+                0, 0, maxIter);
+            fprintf('%s%s\n', sprintf(repmat('\b', 1, counterTxtLen + 1)), counterTxt);
+            counterTxtLen = length(counterTxt);
+        end
+
+    else
+        counterTxtLen = -1;
     end
 
-    [~, ~, ~, ~, ~, oceanFunSph] = geoboxcap(L, ocean, "BeQuiet", true);
-    oceanFunSph = oceanFunSph(:, 3:4);
+    if size(oceanFunSph, 2) == 4
+        oceanFunSph = oceanFunSph(:, 3:4);
+    end
 
-    if ~beQuiet
-        counterTxt = sprintf('SLE solver progress: Computed ocean function  %3d%% (%2d/%2d iterations)', ...
-            0, 0, maxIter);
-        fprintf('%s%s\n', sprintf(repmat('\b', 1, counterTxtLen + 1)), counterTxt);
-        counterTxtLen = length(counterTxt);
+    if isempty(kernelOrder)
+        kernelOrder = kernelorder(L);
     end
 
     %% Constants
@@ -191,39 +218,51 @@ function [rslLoadSph, rslLoadLclSph, barystaticSL] = solvesle(forcingSph, vararg
 
     for iIter = 1:maxIter
 
-        if doSteric
-            loadSph = forcingSph + (rslLclSph - stericLclSph) * WATER_DENSITY;
-        else
-            loadSph = forcingSph + rslLclSph * WATER_DENSITY;
-        end
+        % if doSteric
+        %     loadSph = forcingSph + (rslLclSph - stericLclSph) * WATER_DENSITY;
+        % else
+        loadSph = forcingSph + rslLclSph * WATER_DENSITY;
+        % end
 
         rslGravitySph = 3 / EARTH_DENSITY * llnFactor ./ (2 * degree + 1) .* loadSph;
 
         if doRotationFeedback
             rotPotSph = zeros([addmup(L), 2]);
-            rotPotSph(1, 1) = 2/3 * EARTH_RADIUS ^ 2 * EARTH_ANGULAR_VELOCITY ^ 2 * (- (1 + llnGeoid(2)) / POLAR_INERTIA) * 8 * pi / 3 * EARTH_RADIUS ^ 4 * (loadSph(1, 1) - loadSph(4, 1) / sqrt(5));
+            % C00
+            rotPotSph(1, 1) = 2/3 * EARTH_RADIUS ^ 2 * EARTH_ANGULAR_VELOCITY ^ 2 ...
+                * (- (1 + llnGeoid(2)) / POLAR_INERTIA) * 8 * pi / 3 * EARTH_RADIUS ^ 4 * (loadSph(1, 1) - loadSph(4, 1) / sqrt(5));
             rotPotSph(4, 1) = -rotPotSph(1, 1) / sqrt(5);
-            rotPotSph(5, :) = -1 / sqrt(15) * EARTH_RADIUS ^ 2 * EARTH_ANGULAR_VELOCITY ^ 2 * EARTH_ANGULAR_VELOCITY * (1 + llnGeoid(2)) / (EQUATORIAL_INERTIA * CHANDLER_WOBBLE_FREQUENCY) * (-4 * pi / sqrt(15)) * EARTH_RADIUS ^ 4 * loadSph(5, :);
+            % C20
+            rotPotSph(5, :) = -1 / sqrt(15) * EARTH_RADIUS ^ 2 * EARTH_ANGULAR_VELOCITY ^ 2 ...
+                * EARTH_ANGULAR_VELOCITY * (1 + llnGeoid(2)) / (EQUATORIAL_INERTIA * CHANDLER_WOBBLE_FREQUENCY) ...
+                * (-4 * pi / sqrt(15)) * EARTH_RADIUS ^ 4 * loadSph(5, :);
             rslRotSph = tlnFactor / GRAVITY .* rotPotSph;
             rslSph = rslGravitySph + rslRotSph;
         else
             rslSph = rslGravitySph;
         end
 
-        if doGia
-            rslSph = rslSph + (giaGeoidSph - giaVlmSph);
+        % if doGia
+        %     rslSph = rslSph + (giaGeoidSph - giaVlmSph);
+        % end
+
+        if doOtherForcing
+            rslSph = rslSph + otherForcingSph / WATER_DENSITY;
         end
 
-        if doSteric
-            heightDiff = -1 / WATER_DENSITY * (forcingSph(1, 1) / oceanFunSph(1, 1)) - ...
-                sum((rslSph - stericLclSph) .* oceanFunSph / oceanFunSph(1, 1), 'all');
-        else
-            heightDiff = -1 / WATER_DENSITY * (forcingSph(1, 1) / oceanFunSph(1, 1)) - ...
-                sum(rslSph .* oceanFunSph / oceanFunSph(1, 1), 'all');
-        end
+        % % if doSteric
+        % %     heightDiff = -(forcingSph(1, 1) / oceanFunSph(1, 1)) / WATER_DENSITY ...
+        % %         -sum((rslSph - stericLclSph) .* oceanFunSph / oceanFunSph(1, 1), 'all');
+        % % else
+        % % end
 
-        rslSph(1, 1) = rslSph(1, 1) + heightDiff;
-        rslLclSph = localise(rslSph, ocean, L, "K", oceanKernel);
+        % heightDiff =- forcingSph(1, 1) / WATER_DENSITY / oceanFunSph(1, 1) ...
+        %     -sum(rslSph .* oceanFunSph, 'all') / oceanFunSph(1, 1);
+        % rslSph(1, 1) = rslSph(1, 1) + heightDiff;
+        % rslLclSph = localise(rslSph, ocean, L, ...
+        %     "K", oceanKernel, "KernelOrder", kernelOrder);
+        rslLclSph(1, 1) = -forcingSph(1, 1) / WATER_DENSITY;
+        rslSph(1, 1) = rslLclSph(1, 1) / oceanFunSph(1, 1);
 
         % Counter
         if ~beQuiet
@@ -238,13 +277,18 @@ function [rslLoadSph, rslLoadLclSph, barystaticSL] = solvesle(forcingSph, vararg
     end
 
     %% Post-processing
-    if doSteric
-        rslLoadSph = (rslSph - stericLclSph) * WATER_DENSITY;
-        rslLoadLclSph = (rslLclSph - stericLclSph) * WATER_DENSITY;
-    else
-        rslLoadSph = rslSph * WATER_DENSITY;
-        rslLoadLclSph = rslLclSph * WATER_DENSITY;
+    if doOtherForcing
+        rslSph = rslSph - otherForcingSph / WATER_DENSITY;
+        rslLclSph = localise(rslSph, ocean, L, "K", oceanKernel, "KernelOrder", kernelOrder);
     end
+
+    % if doSteric
+    %     rslLoadSph = (rslSph - stericLclSph) * WATER_DENSITY;
+    %     rslLoadLclSph = (rslLclSph - stericLclSph) * WATER_DENSITY;
+    % else
+    rslLoadSph = rslSph * WATER_DENSITY;
+    rslLoadLclSph = rslLclSph * WATER_DENSITY;
+    % end
 
     barystaticSL = rslLclSph(1, 1) / oceanFunSph(1, 1) * 1000; % m -> mm
 
@@ -252,6 +296,11 @@ function [rslLoadSph, rslLoadLclSph, barystaticSL] = solvesle(forcingSph, vararg
         [order, degree] = addmon(L);
         rslLoadSph = [degree, order, rslLoadSph];
         rslLoadLclSph = [degree, order, rslLoadLclSph];
+    end
+
+    % Clean counter
+    if ~beQuiet
+        fprintf('%s', sprintf(repmat('\b', 1, counterTxtLen + 1)));
     end
 
 end

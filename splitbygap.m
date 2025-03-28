@@ -1,15 +1,28 @@
+%% SPLITBYGAP
+% Inserts NaN (or NaT) into a time series to split it at gaps greater than a given threshold.
+%
+% Syntax
+% [time, series1, series2, ...] = splitbygap(time, tol, series1, series2, ...)
+%
+% Last modified by
+%   2025/03/28, williameclee@arizona.edu (@williameclee)
+
 function [x, varargout] = splitbygap(x, tol, varargin)
 
     if isempty(tol)
 
-        if isdatetime(x)
+        if isdatetime(x) || isduration(x)
             tol = days(120);
-			splitObj = NaT;
         else
             tol = 1;
-			splitObj = nan;
         end
 
+    end
+
+    if isdatetime(x) || isduration(x)
+        splitObj = NaT;
+    else
+        splitObj = nan;
     end
 
     xGap = diff(x);

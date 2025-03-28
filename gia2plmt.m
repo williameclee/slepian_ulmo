@@ -95,9 +95,7 @@
 %       PANGAEA, doi: 10.1594/PANGAEA.932462
 %
 % Last modified by
-%   2025/02/05, williameclee@arizona.edu (@williameclee)
-%   2024/10/03, williameclee@arizona.edu (@williameclee)
-%   2024/08/20, williameclee@arizona.edu (@williameclee)
+%   2025/03/28, williameclee@arizona.edu (@williameclee)
 
 function varargout = gia2plmt(varargin)
     %% Initialisation
@@ -122,7 +120,7 @@ function varargout = gia2plmt(varargin)
 
         if size(lmcosiM, 1) < addmup(L)
             warning('SLEPIAN:gia2plmt:truncation', ...
-                'Model %s resolution lower than the required degree %d', model, L);
+                'Model %s resolution lower than the requested degree %d', model, L);
             [lmcosiM(1:addmup(L), 2), lmcosiM(1:addmup(L), 1)] = addmon(L);
         else
             lmcosiM = lmcosiM(1:addmup(L), :);
@@ -144,9 +142,9 @@ function varargout = gia2plmt(varargin)
 
     % Surface mass density or geoid height
     switch outputField
-        case 'massdensity'
+        case {'massdensity', 'SD'}
             % Do nothing
-        case 'geoid'
+        case {'geoid', 'POT'}
             % Convert to geoid height
             lmcosiM = plm2pot(lmcosiM, [], [], [], 5);
 
@@ -248,15 +246,17 @@ function varargout = parseinputs(varargin)
     addOptional(p, 'L', [], ...
         @(x) isnumeric(x) || isempty(x));
     addParameter(p, 'BeQuiet', false, @(x) islogical(x) || isnumeric(x));
-    addParameter(p, 'OutputField', 'massdensity', @(x) ischar(validatestring(x, {'massdensity', 'geoid'})));
-    addParameter(p, 'OutputFormat', 'timefirst', @(x) ischar(validatestring(x, {'timefirst', 'traditional'})));
+    addParameter(p, 'Unit', 'SD', ...
+        @(x) ischar(validatestring(x, {'massdensity', 'geoid', 'SD', 'POT'})));
+    addParameter(p, 'OutputFormat', 'timefirst', ...
+        @(x) ischar(validatestring(x, {'timefirst', 'traditional'})));
 
     parse(p, varargin{:});
     time = p.Results.Time;
     model = conddefval(p.Results.Model, modelD);
     L = p.Results.L;
     beQuiet = p.Results.BeQuiet;
-    outputField = p.Results.OutputField;
+    outputField = p.Results.Unit;
     outputFormat = p.Results.OutputFormat;
 
     if isdatetime(time)

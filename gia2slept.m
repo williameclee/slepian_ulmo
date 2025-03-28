@@ -66,76 +66,65 @@
 %       series, if available
 %   total - Total GIA correction
 %
+% Notes
+%   By default, if the output unit is geoid (POT), it is shifted vertically to represent the sea surface height change to conserve the ocean mass. To remove such effect, simply set the degree-0 coefficient to zero.
+%
 % Last modified by
-%   2024/08/30, williameclee@arizona.edu (@williameclee)
+%   2025/03/28, williameclee@arizona.edu (@williameclee)
 
 function varargout = gia2slept(varargin)
     %% Initialisation
     % Parse inputs
-    [date, model, domain, L, phi, theta, omega, beQuiet] = ...
+    [date, model, domain, L, phi, theta, omega, units, beQuiet] = ...
         parseinputs(varargin{:});
 
     %% Loading the model
-    % Get the yearly trend
-    if strcmp(model, 'mascon')
+    warning('off', 'SLEPIAN:gia2plmt:noBoundsToReturn');
+    [plm, plmU, plmL] = gia2plmt( ...
+        [], model, L, "Unit", units, "BeQuiet", beQuiet);
 
-        if isempty(date) || isscalar(date)
-            [slept, dates] = mascon2slept('gia', domain, L, ...
-                [], "BeQuiet", beQuiet);
-            slept = slept(end, :) - slept(1, :);
-            deltaYear = years(dates(end) - dates(1));
-            slept = slept / deltaYear;
+    switch units
+        case {'massdensity', 'SD'}
+        case {'geoid', 'POT'}
+            oceanDomain = GeoDomain('alloceans', "Buffer", 0.5);
+            zplm = giaz2plmt(model, L, "BeQuiet", beQuiet);
+            plmLcl = localise(plm, oceanDomain, L);
+            zplm = localise(zplm, oceanDomain, L);
+            zOffset = plmLcl(1, 3) - zplm(1, 3) / 1e3;
+            plm(1, 3) = plm(1, 3) - zOffset / oceanDomain.SphArea;
+    end
 
-            if ~isempty(date)
-                deltaYear = date;
-                slept = slept * deltaYear;
-            end
+    hasBounds = ~isempty(plmU) && ~isempty(plmL);
 
+    L = conddefval(L, max(plm(:, 1)));
+
+    %% Computing the basis
+    [falpha, falphaU, falphaL, N, G] = findslepianbasis( ...
+        plm, plmU, plmL, domain, phi, theta, omega, L, hasBounds, beQuiet);
+
+    %% Getting the trend
+    if isempty(date) || isscalar(date)
+        % If time is scalar, interpret it as the day change
+        if isempty(date)
+            date = datetime;
+            deltaYear = 1;
         else
-            slept = mascon2slept('gia', domain, L, ...
-                [date(1), date(end)] + [-1, 1], "BeQuiet", beQuiet);
+            deltaYear = date / days(years(1));
         end
 
-        [G, ~, ~, ~, N] = glmalpha_new(domain, L, "BeQuiet", beQuiet);
-        hasBounds = false;
     else
+        deltaYear = years(date - date(1));
+    end
 
-        warning('off', 'SLEPIAN:gia2plmt:noBoundsToReturn');
-        [plm, plmU, plmL] = gia2plmt( ...
-            [], model, L, "BeQuiet", beQuiet);
-        hasBounds = ~isempty(plmU) && ~isempty(plmL);
+    slept = deltaYear(:) * falpha(:)';
 
-        L = conddefval(L, max(plm(:, 1)));
-
-        %% Computing the basis
-        [falpha, falphaU, falphaL, N, G] = findslepianbasis( ...
-            plm, plmU, plmL, domain, phi, theta, omega, L, hasBounds, beQuiet);
-
-        %% Getting the trend
-        if isempty(date) || isscalar(date)
-            % If time is scalar, interpret it as the day change
-            if isempty(date)
-                date = datetime;
-                deltaYear = 1;
-            else
-                deltaYear = date / days(years(1));
-            end
-
-        else
-            deltaYear = years(date - date(1));
-        end
-
-        slept = deltaYear(:) * falpha(:)';
-
-        if hasBounds
-            sleptU = deltaYear(:) * falphaU(:)';
-            sleptL = deltaYear(:) * falphaL(:)';
-        end
-
+    if hasBounds
+        sleptU = deltaYear(:) * falphaU(:)';
+        sleptL = deltaYear(:) * falphaL(:)';
     end
 
     %% Getting the total
-    truncation = round(N);
+    truncation = ceil(N);
 
     if isa(domain, 'GeoDomain') || ismatrix(domain)
         eigfunINT = integratebasis_new( ...
@@ -145,7 +134,15 @@ function varargout = gia2slept(varargin)
             G, domain, truncation, phi, theta, "BeQuiet", beQuiet);
     end
 
-    eigfunINT = eigfunINT * (4 * pi * 6370e3 ^ 2) / 1e12;
+    eigfunINT = eigfunINT(1:truncation);
+
+    switch units
+        case {'massdensity', 'SD'}
+            eigfunINT = eigfunINT * (4 * pi * 6370e3 ^ 2) / 1e12;
+        case {'geoid', 'POT'}
+            eigfunINT = eigfunINT * 1e3 / domain.SphArea;
+    end
+
     total = slept(:, 1:truncation) * eigfunINT';
 
     %% Collecting outputs and plotting
@@ -154,7 +151,11 @@ function varargout = gia2slept(varargin)
         sleptL = nan;
     end
 
-    varargout = {date, slept, sleptU, sleptL, total};
+    if isscalar(date)
+        varargout = {slept, sleptU, sleptL, total};
+    else
+        varargout = {date, slept, sleptU, sleptL, total};
+    end
 
     if nargout > 0
         return
@@ -163,6 +164,7 @@ function varargout = gia2slept(varargin)
     try
         plotgiamap(model, plm, falpha, deltaYear, domain, L);
     catch
+        warning('Failed to plot the GIA map');
     end
 
 end
@@ -198,6 +200,8 @@ function varargout = parseinputs(varargin)
     addOptional(p, 'phi', phiD, @(x) isnumeric);
     addOptional(p, 'theta', thetaD, @(x) isnumeric);
     addOptional(p, 'omega', omegaD, @(x) isnumeric);
+    addParameter(p, 'Unit', 'SD', ...
+        @(x) ischar(validatestring(x, {'massdensity', 'geoid', 'SD', 'POT'})));
     addParameter(p, 'BeQuiet', 0.5, @(x) islogical(x) || isnumeric(x));
 
     parse(p, varargin{:});
@@ -208,6 +212,7 @@ function varargout = parseinputs(varargin)
     phi = conddefval(p.Results.phi, phiD);
     theta = conddefval(p.Results.theta, thetaD);
     omega = conddefval(p.Results.omega, omegaD);
+    units = p.Results.Unit;
     beQuiet = uint8(double(p.Results.BeQuiet) * 2);
 
     if isnumeric(time)
@@ -224,7 +229,7 @@ function varargout = parseinputs(varargin)
         domain = GeoDomain(domain{:});
     end
 
-    varargout = {time, model, domain, L, phi, theta, omega, beQuiet};
+    varargout = {time, model, domain, L, phi, theta, omega, units, beQuiet};
 
 end
 
