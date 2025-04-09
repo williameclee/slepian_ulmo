@@ -46,6 +46,11 @@ function [p, latlim, lonmin] = oceanpoly(oceanNames, varargin)
         @(x) islogical(x) || isnumeric(x));
     parse(ip, oceanNames, varargin{:});
     oceanNames = ip.Results.Oceans;
+
+    if ischar(oceanNames) || isstring(oceanNames)
+        oceanNames = {oceanNames};
+    end
+
     latlim = ip.Results.Latlim;
     lonOrigin = ip.Results.LonOrigin;
     beQuiet = logical(ip.Results.BeQuiet);
@@ -54,16 +59,26 @@ function [p, latlim, lonmin] = oceanpoly(oceanNames, varargin)
     % Load the ocean boundaries
     LimitsOfOceansAndSeas = limitsofoceansandseas('BeQuiet', beQuiet);
     oceanNames1 = oceanNames(~ismember(oceanNames, {'Arctic Ocean, eastern part'}));
-    oceanNames2 = oceanNames(~ismember(oceanNames, {'Arctic Ocean, western part'}));
+
+    if isempty(oceanNames1)
+        error('What is going on?')
+    end
+
     p1 = union( ...
         [LimitsOfOceansAndSeas( ...
          ismember({LimitsOfOceansAndSeas.Name}, oceanNames1) ...
      ).poly]);
-    p2 = union( ...
-        [LimitsOfOceansAndSeas( ...
-         ismember({LimitsOfOceansAndSeas.Name}, oceanNames2) ...
-     ).poly]);
-    p = union(p1, p2);
+
+    if length(oceanNames1) > 1
+        oceanNames2 = oceanNames(~ismember(oceanNames, {'Arctic Ocean, western part'}));
+        p2 = union( ...
+            [LimitsOfOceansAndSeas( ...
+             ismember({LimitsOfOceansAndSeas.Name}, oceanNames2) ...
+         ).poly]);
+        p = union(p1, p2);
+    else
+        p = p1;
+    end
 
     p = simplify(p);
     [lon, lat] = poly2cw( ...
@@ -72,6 +87,7 @@ function [p, latlim, lonmin] = oceanpoly(oceanNames, varargin)
     [lon, lat] = closecoastline(lon, lat);
     [lat, lon] = flatearthpoly(lat, lon, lonOrigin);
 
+    lon = lon - 360 * floor(min(lon) / 360);
     p = polyshape(lon, lat);
     p = removepolarcaps(p, latlim, lonOrigin);
     latlim = ...
