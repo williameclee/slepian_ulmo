@@ -1,11 +1,10 @@
-# slepian_ulmo
+# Unified Localisation of Mass over Oceans (ULMO)
 
-A fork of csdms-contrib MATLAB repositories dedicated to constructing Slepian functions over ocean basins.
-There are also functions for spatial visualisation.
+A pipeline for using GRACE satellite gravimetry and altimetry-steric (in development) measurements to study ocean mass change over ocean basins, with extended functionalities for Slepian functions and sea level equation modelling.
 
 ![Example of Slepian functions over the Pacific Ocean](images/cover.svg)
 
-## Functionalities
+## Functionalities and Dependencies
 
 Functions in this repository may call or overwrite functions from the following packages. Please ensure they are installed and the paths are configured properly before running the functions in this repository.
 
@@ -93,4 +92,4 @@ Other supporting functions for visualisation include:
 ---
 Last modified by:
 
-- [En-Chi Lee (@williameclee)](https://github.com/williameclee), 2024/11/20
+- [En-Chi Lee (@williameclee)](https://github.com/williameclee), 2025/05/19
