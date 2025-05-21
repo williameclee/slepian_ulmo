@@ -15,16 +15,27 @@
 %       - 'CSR': Center for Space Research
 %       - 'GFZ': GeoForschungsZentrum Potsdam
 %       - 'JPL': Jet Propulsion Laboratory
-%       The default data center is 'CSR'.
+%       The default data centre is 'CSR'.
+%       When the first argument is a cell array, it is interpreted as
+%       {Pcenter, Rlevel, Ldata}.
+%       Data type: char
 %   Rlevel - Release level of the solution
-%       Either 'RL04','RL05', or 'RL06'.
+%       Either 'RL04','RL05', or 'RL06' (or numbers).
 %       The default release level is 'RL06'.
-%   Ldata - The bandwidth of the GRACE product
-%       The default Ldata is 60.
-%   Lsle - The bandwidth used to solve the sea level equation
+%       Currently, only RL06 is guaranteed to work.
+%       Data type: char | [numeric]
+%   Ldata - Bandwidth of the date product
+%       In the case where there are more than one product from a data
+%       centre (such as BA 60 or BB 96 standard L2 products) this allows
+%       you to choose between them.
+%       The default L is 60.
+%       Data type: [numeric]
+%   Lsle - Bandwidth used to solve the sea level equation
 %       The default Lsle is 96.
-%   GiaModel - GIA model
+%       Data type: [numeric]
+%   GiaModel - Name of GIA model
 %       The default GIA model is 'ice6gd'.
+%       Data type: char
 %   OceanDomain - Ocean domain
 %       The input format should be whatever KERNELCP_NEW accepts, e.g. a
 %       GeoDomain object.
@@ -41,21 +52,34 @@
 %           half-length (DURATION/DATENUM in years) of the epoch
 %       The defualt reference epoch is centred at Jan 1, 2008, with a
 %           5-year half-length (similar to TN-13).
+%       Data type: DATETIME | DATENUM | cell
 %   IncludeC20 - Whether to also recompute C20
 %       The default option is false, as C20 is usually replaced with SLR
 %       values.
+%       Data type: logical | ([numeric])
 %   ReplaceWithGAD - Whether to remove GAD instead of GAC
 %       The default option is true (see Sun et al., 2016).
+%       Data type: logical | ([numeric])
 %   Method - Method to solve the sea level equation
 %       - 'fingerprint': Solve the sea level equation using the fingerprint
 %           method (see SOLVESLE).
 %       - 'uniform': Assume a uniform barystatic load over the ocean
 %           domain.
 %       The default method is 'fingerprint'.
-%   ForceNew - Whether to force new generation of a save file
+%       Data type: char
+%   ForceNew - Logical flag to force reprocess of the data
 %       The default option is false.
-%   BeQuiet - Whether to suppress output
-%       The default option is soft true.
+%       Data type: logical | ([numeric])
+%	SaveData - Logical flag to save the data
+%		- true: Save the data to disk.
+%		- false: Do not save the data to disk.
+%		The default option is true.
+%		Data types: logical | ([numeric])
+%	BeQuiet - Logical flag to print messages
+%		- true: Suppress all messages.
+%		- false: Print all messages (usually for debugging).
+%		The default option is false.
+%		Data types: logical | ([numeric])
 %
 % Output arguments
 %   dates - dates of the coefficients
@@ -80,7 +104,7 @@
 %   2025/03/18, williameclee@arizona.edu (@williameclee)
 %
 % Last modified by
-%   2025/05/13, williameclee@arizona.edu (@williameclee)
+%   2025/05/21, williameclee@arizona.edu (@williameclee)
 
 function varargout = solvedegree1(varargin)
     %% Initialisation
@@ -94,8 +118,8 @@ function varargout = solvedegree1(varargin)
         getoutputfile(pcenter, rlevel, replaceWGad, giaModel, ...
         includeC20, Ldata, Lsle, oceanDomain, method);
 
-    [graceSpht, ~, dates] = grace2plmt_new(pcenter, rlevel, 60, ...
-        "OutputFormat", 'traditional', "BeQuiet", beQuiet);
+    [graceSpht, dates] = grace2plmt_new(pcenter, rlevel, 60, ...
+        "Unit", 'SD', "OutputFormat", 'traditional', "BeQuiet", beQuiet);
     graceSpht = graceSpht(1:addmup(Ldata), 1:4, :);
 
     if Ldata < Lsle
@@ -124,7 +148,7 @@ function varargout = solvedegree1(varargin)
         end
 
     else
-        coeffs = computeDeg1s(pcenter, rlevel, graceSpht, replaceWGad, Lsle, dates, giaModel, refEpochLim, includeC20, oceanDomain, coeffsId, method, beQuiet);
+        coeffs = solvedegree1Core(pcenter, rlevel, graceSpht, replaceWGad, Lsle, dates, giaModel, refEpochLim, includeC20, oceanDomain, coeffsId, method, beQuiet);
 
         if saveData
             save(dataPath, 'coeffs')
@@ -171,6 +195,7 @@ function varargout = solvedegree1(varargin)
 end
 
 %% Subfunctions
+% Parse input arguments
 function varargout = parseinputs(inputs)
     % Set default parameters
     defaultPcenter = 'CSR';
@@ -267,10 +292,11 @@ function varargout = parseinputs(inputs)
          forceNew, saveData, beQuiet};
 end
 
+% Get the input and output file names
 function [outputPath, outputFile, outputExists] = ...
         getoutputfile(pcenter, rlevel, replaceWGad, giaModel, ...
         includeC20, L, Lsle, oceanDomain, method)
-    outputFolder = fullfile(getenv('GRACEDATA'), 'Degree1');
+    outputFolder = fullfile(getenv('GRACEDATA'), 'Degree1', 'new');
 
     if ~exist(outputFolder, 'dir')
         mkdir(outputFolder);
@@ -307,12 +333,13 @@ function [outputPath, outputFile, outputExists] = ...
     outputExists = exist(outputPath, 'file');
 end
 
-function coeffs = computeDeg1s(pcenter, rlevel, graceSpht, replaceWGad, Lsle, dates, giaModel, refEpochLim, includeC20, oceanDomain, coeffsId, method, beQuiet)
+% Heart of the programme
+function coeffs = solvedegree1Core(pcenter, rlevel, graceSpht, replaceWGad, Lsle, dates, giaModel, refEpochLim, includeC20, oceanDomain, coeffsId, method, beQuiet)
     % Add back GAC and remove GAD instead (Sun et al., 2016)
     if replaceWGad
-        [~, gacSpht] = aod1b2plmt(pcenter, rlevel, 'GAC', Lsle, ...
+        [gacSpht, ~] = aod1b2plmt(pcenter, rlevel, 'GAC', Lsle, ...
             "OutputFormat", 'traditional', "BeQuiet", beQuiet);
-        [~, gadSpht] = aod1b2plmt(pcenter, rlevel, 'GAD', Lsle, ...
+        [gadSpht, ~] = aod1b2plmt(pcenter, rlevel, 'GAD', Lsle, ...
             "OutputFormat", 'traditional', "BeQuiet", beQuiet);
         graceSpht(:, 3:4, :) = graceSpht(:, 3:4, :) ...
             + gacSpht(:, 3:4, :) - gadSpht(:, 3:4, :);
@@ -349,7 +376,7 @@ function coeffs = computeDeg1s(pcenter, rlevel, graceSpht, replaceWGad, Lsle, da
     % Decently fast, no need to use parfor
     for iDate = 1:length(dates)
         coeffs(iDate, :) = ...
-            solvedegree1_iter(graceSpht(:, 3:4, iDate), oceanDomain, ...
+            solvedegree1Iter(graceSpht(:, 3:4, iDate), oceanDomain, ...
             Lsle, coeffsKernel, coeffsId, ...
             oceanKernelSle, landKernelSle, oceanFunSph, kernelOrder, ...
             method, beQuiet);
@@ -388,7 +415,7 @@ function coeffs = computeDeg1s(pcenter, rlevel, graceSpht, replaceWGad, Lsle, da
 end
 
 function [coeffs, graceSph] = ...
-        solvedegree1_iter(graceSph, oceanDomain, Lsle, coeffsKernel, coeffsId, ...
+        solvedegree1Iter(graceSph, oceanDomain, Lsle, coeffsKernel, coeffsId, ...
         oceanKernelSle, landKernelSle, oceanFunSph, kernelOrder, method, beQuiet)
     maxIter = 5;
 
