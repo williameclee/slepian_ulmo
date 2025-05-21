@@ -6,11 +6,11 @@
 %		- true: Check the content of the directory (excluding . and ..).
 %		- false: Check the date of the directory only.
 %
-% Notes
-%	This is a helper function with limited documentation.
-%
 % See also
 %	GRACEDEG1, SSH2XYZ
+%
+% Notes
+%	This is a helper function with limited documentation.
 %
 % Authored by
 %   2025/05/20, williameclee@arizona.edu (@williameclee)
