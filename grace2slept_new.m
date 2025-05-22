@@ -67,9 +67,10 @@
 %   N - The Shannon number
 %
 % See also
-%   PLM2SLEP
+%   GRACE2PLMT (GRACE2PLMT_NEW), PLM2SLEP
 %
 % Last modified by
+%   2025/05/22, williameclee@arizona.edu (@williameclee)
 %   2024/08/30, williameclee@arizona.edu (@williameclee)
 %   2022/05/18, charig@princeton.edu (@harig00)
 %   2012/06/26, fjsimons@alum.mit.edu (@fjsimons)
@@ -94,7 +95,7 @@ function varargout = grace2slept_new(varargin)
 
     % Check if you want the Shannon number of eigenfunctions
     if strcmp(truncation, 'N')
-        truncation = round((L(end) + 1) ^ 2 * domain.Spharea);
+        truncation = ceil((L(end) + 1) ^ 2 * domain.Spharea);
     else
         truncation = conddefval(truncation, ldim);
     end
@@ -180,15 +181,15 @@ function varargout = grace2slept_new(varargin)
     % Use GRACE2PLMT to get the GRACE data
     [sphCoeffs, ~, dates] = grace2plmt_new(dataCentre, releaseLevel, ...
         Ldata, unit, 'Deg1Correction', deg1corr, ...
-        'C20Correction', c20corr, 'C30Correction', c30corr);
+        'C20Correction', c20corr, 'C30Correction', c30corr, "BeQuiet", beQuiet);
     dates = dates(:);
     % *** Here I changed this. Run grace2plmt once to update your data, and
     % then when you call forcenew=1 from now on it will just update the
     % expansion
 
     % Initialize new coefficients
-    nMonths = length(dates);
-    slept = nan([nMonths, truncation]);
+    nDates = length(dates);
+    slept = nan([nDates, truncation]);
     % slepcalerrors = nan(nmonths, truncation);
 
     % Limit everything to the window bandwidth
@@ -196,10 +197,9 @@ function varargout = grace2slept_new(varargin)
     %cal_errorsW = cal_errors(:,1:size(lmcosiW,1),1:4);
 
     % Loop over the months
-    parfor iMonth = 1:nMonths
-        % Expand this month's POTENTIAL into the Slepian basis
-        sphCoeffs = squeeze(potcoffsW(iMonth, :, :));
-        slept(iMonth, :) = ...
+    for iDate = 1:nDates
+        sphCoeffs = squeeze(potcoffsW(iDate, :, :));
+        slept(iDate, :) = ...
             sphCoeffs(2 * size(sphCoeffs, 1) + ...
             ronmW(1:(maxL + 1) ^ 2))' * G;
 
@@ -240,7 +240,7 @@ function varargout = parseinputs(varargin)
     LD = 18;
     taperD = 0;
     JD = [];
-    unitD = 'POT';
+    unitD = 'SD';
     forceNewD = false;
 
     p = inputParser;
@@ -387,7 +387,7 @@ function [outputPath, outputExists] = getoutputfile(domain, L, ...
 
     outputPath = fullfile(outputFolder, outputFile);
 
-    outputExists = exist(outputPath, 'file') == 2;
+    outputExists = isfile(outputPath);
 
 end
 

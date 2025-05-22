@@ -34,7 +34,8 @@
 %       The default L is 60.
 %       Data type: [numeric]
 %   unit - Unit of the output
-%       - 'POT': Geopotential field.
+%       - 'GRAV': Surface gravity (this is POT in SLEPIAN_ALPHA).
+%       - 'POT': Geopotential field (surface gravity * equatorial radius).
 %       - 'SD': Surface mass density.
 %       The default field is 'SD'.
 %       Data type: char
@@ -99,7 +100,7 @@
 %   printed to the log file instead.
 %
 % Last modified by
-%   2025/05/21, williameclee@arizona.edu (@williameclee)
+%   2025/05/22, williameclee@arizona.edu (@williameclee)
 %   2022/05/18, charig@email.arizona.edu (@harig00)
 %   2020/11/09, lashokkumar@arizona.edu
 %   2019/03/18, mlubeck@email.arizona.edu
@@ -119,25 +120,32 @@ function varargout = grace2plmt_new(varargin)
 
     % If this file already exists, load it.  Otherwise, or if we force it, make
     % a new one (e.g. you added extra months to the database).
-    if exist(outputPath, 'file') && ~forceNew
+    if exist(outputPath, 'file') && ...
+            (forceNew == 0 || (forceNew == 1) && isolder(inputFolder, outputPath, false))
         % Load the peocessed data
         load(outputPath, ...
-            'gracePlmt', 'graceStdPlmt', 'dates', 'gravityParam', 'equatorRadius', ...
-            'potcoffs', 'date')
+            'gracePlmt', 'graceStdPlmt', 'dates')
 
-        if ~exist('gracePlmt', 'var') && exist('potcoffs', 'var')
-            gracePlmt = potcoffs;
+        if ~(exist('gracePlmt', 'var') && ...
+                exist('graceStdPlmt', 'var') && ...
+                exist('dates', 'var'))
+            forceNew = true;
+
+            if beQuiet <= 1
+                warning(sprintf('%s:LoadData:MissingVariables', upper(mfilename)), ...
+                    'One or more variables are missing in the file %s, recomputing...', ...
+                    outputPath);
+            end
+
         end
 
-        if ~exist('dates', 'var') && exist('date', 'var')
-            dates = date;
-        end
-
-        if ~beQuiet
+        if beQuiet <= 1
             fprintf('%s loaded %s\n', upper(mfilename), outputPath)
         end
 
-    else
+    end
+
+    if forceNew
         % Reload from the raw data
         [gracePlmt, graceStdPlmt, dates, gravityParam, equatorRadius] = ...
             grace2plmtCore(Pcenter, Rlevel, Ldata, unit, inputFolder, ...
@@ -147,7 +155,7 @@ function varargout = grace2plmt_new(varargin)
             save(outputPath, ...
                 'gracePlmt', 'graceStdPlmt', 'dates', 'gravityParam', 'equatorRadius');
 
-            if ~beQuiet
+            if beQuiet <= 1
                 fprintf('%s saved %s', upper(mfilename), outputPath)
             end
 
@@ -155,11 +163,25 @@ function varargout = grace2plmt_new(varargin)
 
     end
 
+    %% Post-processing and formatting
+    % Recalculate degree 1 coefficients
+    if iscell(redoDeg1)
+        [~, myDeg1, ~] = solvedegree1(Pcenter, Rlevel, redoDeg1{:});
+        myDeg1 = myDeg1 - mean(myDeg1, 1);
+
+        myDeg1 = convertgravity(myDeg1, 'SD', unit, ...
+            "InputFormat", 'L', "L", 1);
+
+        gracePlmt(:, 2, 3) = myDeg1(:, 1);
+        gracePlmt(:, 3, 3) = myDeg1(:, 2);
+        gracePlmt(:, 3, 4) = myDeg1(:, 3);
+    end
+
     % Format output
     [gracePlmt, dates] = ...
-        formatoutput(gracePlmt, dates, redoDeg1, Pcenter, Rlevel, unit, timelim, outputFmt, timeFmt);
+        formatoutput(gracePlmt, dates, timelim, outputFmt, timeFmt);
 
-    varargout = {gracePlmt, dates};
+    varargout = {gracePlmt, graceStdPlmt, dates};
 end
 
 %% Subfunctions
@@ -179,10 +201,12 @@ function [gracePlmt, graceStdPlmt, dates, gravityParam, equatorRadius] = ...
     fprintf(logFid, '%d files to process\n', length(inputFiles));
 
     % C20 and C30 correction setup
-    [tnC2030, tnC2030Std, tnC2030dates] = gracedeg2(Rlevel);
+    [tnC2030, tnC2030Std, tnC2030dates] = ...
+        gracedeg2(Rlevel, "BeQuiet", (uint8(beQuiet == 1) + beQuiet));
 
     % Degree 1 correction setup
-    [tnDeg1, tnDeg1Std, tnDeg1dates] = gracedeg1(Pcenter, Rlevel);
+    [tnDeg1, tnDeg1Std, tnDeg1dates] = ...
+        gracedeg1(Pcenter, Rlevel, "BeQuiet", (uint8(beQuiet == 1) + beQuiet));
 
     % Preallocation
     nDates = length(inputFiles);
@@ -250,18 +274,13 @@ function [gracePlmt, graceStdPlmt, dates, gravityParam, equatorRadius] = ...
     % Use the actual parameters stored in the file instead of from FRALMANAC
     [~, ~, ~, ~, gravityParam, equatorRadius] = parsegracesourcefile(inputPath);
 
-    if strcmp(unit, 'POT')
-        return
-    end
-
-    % Convert gravity to surface geopotential
-    gracePlmt(:, :, 3:4) = gracePlmt(:, :, 3:4) * equatorRadius;
-    % Convert geopotential to surface mass density
-    gracePlmt = plm2pot(gracePlmt, ...
-        equatorRadius, gravityParam, equatorRadius, 4);
-    graceStdPlmt(:, :, 3:4) = graceStdPlmt(:, :, 3:4) * equatorRadius;
-    graceStdPlmt = plm2pot(graceStdPlmt, ...
-        equatorRadius, gravityParam, equatorRadius, 4);
+    % Convert gravity to the desired unit
+    gracePlmt = convertgravity(gracePlmt, 'GRAV', unit, ...
+        "EquatorRadius", equatorRadius, ...
+        "InputFormat", 'lmcosi', "TimeDim", 'timefirst');
+    graceStdPlmt = convertgravity(graceStdPlmt, 'GRAV', unit, ...
+        "EquatorRadius", equatorRadius, ...
+        "InputFormat", 'lmcosi', "TimeDim", 'timefirst');
 end
 
 % Parse input arguments
@@ -275,7 +294,7 @@ function varargout = parseinputs(varargin)
     addOptional(ip, 'Ldata', 60, ...
         @(x) isnumeric(x) && x > 0);
     addOptional(ip, 'Unit', 'SD', ...
-        @(x) ischar(validatestring(x, {'POT', 'SD'})));
+        @(x) ischar(validatestring(x, {'GRAV', 'POT', 'SD'})));
     addOptional(ip, 'TimeRange', [], ...
         @(x) ((isdatetime(x) || isnumeric(x)) && length(x) == 2) || isempty(x));
     addParameter(ip, 'Deg1Correction', true, ...
@@ -290,7 +309,7 @@ function varargout = parseinputs(varargin)
         @(x) ischar(validatestring(x, {'timefirst', 'traditional'})));
     addParameter(ip, 'TimeFormat', 'datenum', ...
         @(x) ischar(validatestring(x, {'datetime', 'datenum'})));
-    addParameter(ip, 'ForceNew', false, ...
+    addParameter(ip, 'ForceNew', 0.5, ...
         @(x) (isnumeric(x) || islogical(x)) && isscalar(x));
     addParameter(ip, 'SaveData', true, ...
         @(x) (isnumeric(x) || islogical(x)) && isscalar(x));
@@ -314,7 +333,7 @@ function varargout = parseinputs(varargin)
     redoDeg1 = ip.Results.RecomputeDegree1;
     outputFmt = ip.Results.OutputFormat;
     timeFmt = ip.Results.TimeFormat;
-    forceNew = logical(ip.Results.ForceNew);
+    forceNew = uint8(double(ip.Results.ForceNew) * 2);
     saveData = logical(ip.Results.SaveData);
     beQuiet = uint8(double(ip.Results.BeQuiet) * 2);
 
@@ -327,9 +346,9 @@ function varargout = parseinputs(varargin)
     end
 
     if islogical(redoDeg1) && redoDeg1
-        redoDeg1 = {60, 96, 'ice6gd', GeoDomain('alloceans', "Buffer", 1.5)};
+        redoDeg1 = {60, 180, 'ice6gd', GeoDomain('alloceans', "Buffer", 0.5)};
     elseif ischar(redoDeg1)
-        redoDeg1 = {60, 96, redoDeg1, GeoDomain('alloceans', "Buffer", 1.5)};
+        redoDeg1 = {60, 180, redoDeg1, GeoDomain('alloceans', "Buffer", 0.5)};
     end
 
     varargout = ...
@@ -339,52 +358,35 @@ function varargout = parseinputs(varargin)
 end
 
 % Format the output
-function [potcoffs, date] = ...
-        formatoutput(potcoffs, date, redoDeg1, Pcenter, Rlevel, unit, timelim, outputFormat, timeFormat)
-
-    if iscell(redoDeg1)
-        [~, coeffs, ~] = solvedegree1(Pcenter, Rlevel, redoDeg1{:});
-        coeffs = coeffs - mean(coeffs, 1);
-
-        switch unit
-            case 'SD' % do nothing
-            case 'POT'
-                k1 = 0.021; % Swenson et al. 2008
-                a = fralmanac('a_EGM96', 'Earth');
-                coeffs = coeffs * (1 + k1) / 5517 / a;
-        end
-
-        potcoffs(:, 2, 3) = coeffs(:, 1);
-        potcoffs(:, 3, 3) = coeffs(:, 2);
-        potcoffs(:, 3, 4) = coeffs(:, 3);
-    end
+function [gracePlmt, dates] = ...
+        formatoutput(gracePlmt, dates, timelim, outputFormat, timeFormat)
 
     if ~isempty(timelim)
         % Only keep the data within the specified time range
-        isValidTime = datetime(date, "ConvertFrom", 'datenum') >= timelim(1) & ...
-            datetime(date, "ConvertFrom", 'datenum') <= timelim(2);
-        potcoffs = potcoffs(isValidTime, :, :);
-        date = date(isValidTime);
+        isValidTime = datetime(dates, "ConvertFrom", 'datenum') >= timelim(1) & ...
+            datetime(dates, "ConvertFrom", 'datenum') <= timelim(2);
+        gracePlmt = gracePlmt(isValidTime, :, :);
+        dates = dates(isValidTime);
     end
 
     switch outputFormat
         case 'timefirst'
             % Do nothing
         case 'traditional'
-            potcoffs = permute(potcoffs, [2, 3, 1]);
+            gracePlmt = permute(gracePlmt, [2, 3, 1]);
     end
 
     switch timeFormat
         case 'datenum'
 
-            if isdatetime(date)
-                date = datenum(date); %#ok<DATNM>
+            if isdatetime(dates)
+                dates = datenum(dates); %#ok<DATNM>
             end
 
         case 'datetime'
 
-            if isnumeric(date)
-                date = datetime(date, "ConvertFrom", 'datenum');
+            if isnumeric(dates)
+                dates = datetime(dates, "ConvertFrom", 'datenum');
             end
 
     end
