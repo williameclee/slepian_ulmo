@@ -10,8 +10,8 @@
 % density using the method of Wahr et al. 1998, based on Love numbers.
 %
 % % Syntax
-%   [plmt, dates] = grace2plmt(Pcenter, Rlevel, unit)
-%   [plmt, dates] = grace2plmt(__, 'Name', Value)
+%   [plmt, stdPlmt, dates] = grace2plmt(Pcenter, Rlevel, unit)
+%   [plmt, stdPlmt, dates] = grace2plmt(__, 'Name', Value)
 %
 % Input arguments
 %   Pcenter - Data centre
@@ -59,9 +59,13 @@
 %       corrections
 %       The default options are all true.
 %       Data type: logical | ([numeric])
-%   ForceNew - Logical flag to force reprocess of the data
-%       The default option is false.
-%       Data type: logical | ([numeric])
+%	ForceNew - Logical flag to force reprocess of the data
+%		- true: Reprocess the data
+%		- false: Only reprocess if previous output is not found
+%		The default option is 'soft-true', only reprocessing the data if
+%       the output file is older than the input files. This option is not
+%       explicitly exposed; to enforce this option, set it to 0.5.
+%		Data types: logical | ([numeric])
 %	SaveData - Logical flag to save the data
 %		- true: Save the data to disk.
 %		- false: Do not save the data to disk.
@@ -121,8 +125,8 @@ function varargout = grace2plmt_new(varargin)
     % If this file already exists, load it.  Otherwise, or if we force it, make
     % a new one (e.g. you added extra months to the database).
     if exist(outputPath, 'file') && ...
-            (forceNew == 0 || (forceNew == 1) && isolder(inputFolder, outputPath, false))
-        % Load the peocessed data
+            (forceNew == 0 || ...
+            (forceNew == 1 && isolder(inputFolder, outputPath, false)))
         load(outputPath, ...
             'gracePlmt', 'graceStdPlmt', 'dates')
 
@@ -137,6 +141,8 @@ function varargout = grace2plmt_new(varargin)
                     outputPath);
             end
 
+        else
+            forceNew = false;
         end
 
         if beQuiet <= 1
@@ -156,7 +162,7 @@ function varargout = grace2plmt_new(varargin)
                 'gracePlmt', 'graceStdPlmt', 'dates', 'gravityParam', 'equatorRadius');
 
             if beQuiet <= 1
-                fprintf('%s saved %s', upper(mfilename), outputPath)
+                fprintf('%s saved %s\n', upper(mfilename), outputPath)
             end
 
         end
@@ -213,6 +219,9 @@ function [gracePlmt, graceStdPlmt, dates, gravityParam, equatorRadius] = ...
     dates = NaT([nDates, 1]);
     gracePlmt = nan([nDates, addmup(Ldata), 4]); % l m cos sin
     graceStdPlmt = nan([nDates, addmup(Ldata), 4]); % l m cos sin
+    deg1corrFailedDates = [];
+    c20corrFailedDates = [];
+    c30corrFailedDates = [];
 
     %% Loop over the months
     wbar = waitbar(0, 'Reading GRACE data', ...
@@ -239,24 +248,61 @@ function [gracePlmt, graceStdPlmt, dates, gravityParam, equatorRadius] = ...
         fprintf(logFid, '%s - %s\n', date, inputFiles{iDate});
 
         if deg1corr
-            [gracePlm, graceStdPlm] = replaceDeg1(gracePlm, graceStdPlm, date, dateRange, tnDeg1, tnDeg1Std, tnDeg1dates, ...
-                beQuiet, logFid);
+            [gracePlm, graceStdPlm, isSuccess] = ...
+                replaceDeg1(gracePlm, graceStdPlm, date, dateRange, ...
+                tnDeg1, tnDeg1Std, tnDeg1dates, logFid);
+
+            if ~isSuccess
+                deg1corrFailedDates = [deg1corrFailedDates; date]; %#ok<AGROW>
+            end
+
         end
 
         if c20corr
-            [gracePlm, graceStdPlm] = replaceC20(gracePlm, graceStdPlm, date, dateRange, tnC2030, tnC2030Std, tnC2030dates, ...
-                beQuiet, logFid);
+            [gracePlm, graceStdPlm, isSuccess] = ...
+                replaceC20(gracePlm, graceStdPlm, date, dateRange, ...
+                tnC2030, tnC2030Std, tnC2030dates, logFid);
+
+            if ~isSuccess
+                c20corrFailedDates = [c20corrFailedDates; date]; %#ok<AGROW>
+            end
+
         end
 
         % Now replace C3,0 if possible
         if c30corr
-            [gracePlm, graceStdPlm] = replaceC30(gracePlm, graceStdPlm, date, dateRange, tnC2030, tnC2030Std, tnC2030dates, ...
-                beQuiet, logFid);
+            [gracePlm, graceStdPlm, isSuccess] = ...
+                replaceC30(gracePlm, graceStdPlm, date, dateRange, ...
+                tnC2030, tnC2030Std, tnC2030dates, logFid);
+
+            if ~isSuccess
+                c30corrFailedDates = [c30corrFailedDates; date]; %#ok<AGROW>
+            end
+
         end
 
         % Combine into one matrix
         gracePlmt(iDate, :, :) = gracePlm;
         graceStdPlmt(iDate, :, :) = graceStdPlm;
+    end
+
+    if ~beQuiet
+
+        if ~isempty(deg1corrFailedDates)
+            warning(sprintf('%s:NoTNReplacementAvailable', upper(mfilename)), ...
+                'No degree 1 replacement for the following dates:\n%s', strjoin(string(deg1corrFailedDates), ', '));
+        end
+
+        if ~isempty(c20corrFailedDates)
+            warning(sprintf('%s:NoTNReplacementAvailable', upper(mfilename)), ...
+                'No C20 replacement for the following dates:\n%s', strjoin(string(c20corrFailedDates), ', '));
+        end
+
+        if ~isempty(c30corrFailedDates)
+            warning(sprintf('%s:NoTNReplacementAvailable', upper(mfilename)), ...
+                'No C30 replacement for the following dates (likely because C30 replacement is only available for GFO):\n%s', strjoin(string(c30corrFailedDates), ', '));
+        end
+
     end
 
     % WGS84 reference setup
@@ -479,22 +525,17 @@ function [dataFiles, Ldata] = ...
 end
 
 % Do degree 1 correction
-function [gracePlm, graceStdPlm] = ...
-        replaceDeg1(gracePlm, graceStdPlm, date, dateRange, tnDeg1, tnDeg1Std, tnDeg1dates, beQuiet, fid)
+function [gracePlm, graceStdPlm, successFlag] = ...
+        replaceDeg1(gracePlm, graceStdPlm, date, dateRange, tnDeg1, tnDeg1Std, tnDeg1dates, fid)
+    successFlag = true;
     % Find a degree 1 data point that is within the month of our GRACE data
     iTn = tnDeg1dates(:) > dateRange(1) & tnDeg1dates(:) < dateRange(2) & ...
         ~any(isnan(tnDeg1(:, :, 3:4)), [2, 3]);
 
     if ~any(iTn)
-
         fprintf(fid, '  C10: (not replaced)   %+10.6e\n', ...
             gracePlm(2, 3));
-
-        if ~beQuiet
-            warning(sprintf('%s:NoTNReplacementAvailable', upper(mfilename)), ...
-                'No degree 1 replacement for %s', date);
-        end
-
+        successFlag = false;
         return
 
     end
@@ -517,21 +558,17 @@ function [gracePlm, graceStdPlm] = ...
 end
 
 % Do C20 correction
-function [gracePlm, graceStdPlm] = ...
-        replaceC20(gracePlm, graceStdPlm, date, dateRange, tnC2030, tnC2030Std, tnC2030dates, beQuiet, fid)
+function [gracePlm, graceStdPlm, successFlag] = ...
+        replaceC20(gracePlm, graceStdPlm, date, dateRange, tnC2030, tnC2030Std, tnC2030dates, fid)
+    successFlag = true;
+
     iTn = tnC2030dates > dateRange(1) & tnC2030dates < dateRange(2) & ...
         ~isnan(tnC2030(:, 1));
 
     if ~any(iTn)
-
         fprintf(fid, '  C20: (not replaced)   %+10.6e\n', ...
             gracePlm(4, 3));
-
-        if ~beQuiet
-            warning(sprintf('%s:NoTNReplacementAvailable', upper(mfilename)), ...
-                'No C20 replacement for %s', date);
-        end
-
+        successFlag = false;
         return
     end
 
@@ -549,21 +586,16 @@ function [gracePlm, graceStdPlm] = ...
 end
 
 % Do C20 correction
-function [gracePlm, graceStdPlm] = ...
-        replaceC30(gracePlm, graceStdPlm, date, dateRange, tnC2030, tnC2030Std, tnC2030dates, beQuiet, fid)
+function [gracePlm, graceStdPlm, successFlag] = ...
+        replaceC30(gracePlm, graceStdPlm, date, dateRange, tnC2030, tnC2030Std, tnC2030dates, fid)
+    successFlag = true;
     iTn = tnC2030dates > dateRange(1) & tnC2030dates < dateRange(2) & ...
         ~isnan(tnC2030(:, 2));
 
     if ~any(iTn)
-
         fprintf(fid, '  C30: (not replaced)   %+10.6e\n', ...
             gracePlm(7, 3));
-
-        if ~beQuiet
-            warning(sprintf('%s:NoTNReplacementAvailable', upper(mfilename)), ...
-                'No C30 replacement for %s', date);
-        end
-
+        successFlag = false;
         return
     end
 
