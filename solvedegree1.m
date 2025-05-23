@@ -104,19 +104,24 @@
 %   2025/03/18, williameclee@arizona.edu (@williameclee)
 %
 % Last modified by
-%   2025/05/21, williameclee@arizona.edu (@williameclee)
+%   2025/05/23, williameclee@arizona.edu (@williameclee)
 
 function varargout = solvedegree1(varargin)
     %% Initialisation
     % Parse inputs
     [pcenter, rlevel, Ldata, Lsle, giaModel, oceanDomain, ...
          refEpochLim, includeC20, replaceWGad, method, timelim, ...
-         forceNew, saveData, beQuiet] = ...
+         forceNew, saveData, beQuiet, onlyId] = ...
         parseinputs(varargin);
 
-    [dataPath, ~, dataExists] = ...
+    [dataPath, ~, outputId] = ...
         getoutputfile(pcenter, rlevel, replaceWGad, giaModel, ...
         includeC20, Ldata, Lsle, oceanDomain, method);
+
+    if onlyId
+        varargout = {outputId};
+        return
+    end
 
     [graceSpht, ~, dates] = grace2plmt_new(pcenter, rlevel, 60, ...
         "Unit", 'SD', "OutputFormat", 'traditional', "BeQuiet", beQuiet);
@@ -140,7 +145,7 @@ function varargout = solvedegree1(varargin)
         coeffsId = [2, 3, addmup(Lsle) + 3]';
     end
 
-    if dataExists && ~forceNew
+    if exist("dataPath", 'file') && ~forceNew
         load(dataPath, 'coeffs')
 
         if beQuiet <= 1
@@ -232,11 +237,13 @@ function varargout = parseinputs(inputs)
     addOptional(ip, 'TimeRange', [], ...
         @(x) isempty(x) || isdatetime(x) || isnumeric(x));
     addParameter(ip, 'ForceNew', false, ...
-        @(x) isnumeric(x) || islogical(x));
+        @(x) (isnumeric(x) || islogical(x)) && isscalar(x));
     addParameter(ip, 'SaveData', true, ...
-        @(x) isnumeric(x) || islogical(x));
+        @(x) (isnumeric(x) || islogical(x)) && isscalar(x));
     addParameter(ip, 'BeQuiet', 0.5, ...
-        @(x) isnumeric(x) || islogical(x));
+        @(x) (isnumeric(x) || islogical(x)) && isscalar(x));
+    addParameter(ip, 'OnlyId', false, ...
+        @(x) (isnumeric(x) || islogical(x)) && isscalar(x));
     parse(ip, inputs{:});
 
     pcenter = ip.Results.Pcenter;
@@ -253,6 +260,7 @@ function varargout = parseinputs(inputs)
     forceNew = logical(ip.Results.ForceNew);
     saveData = logical(ip.Results.SaveData);
     beQuiet = ip.Results.BeQuiet * 2;
+    onlyId = logical(ip.Results.OnlyId);
 
     % Obtain reference epoch
     refEpochHLength = years(5);
@@ -289,11 +297,11 @@ function varargout = parseinputs(inputs)
     varargout = ...
         {pcenter, rlevel, Ldata, Lsle, giaModel, oceanDomain, refEpochLim, ...
          includeC20, replaceWGad, method, timelim, ...
-         forceNew, saveData, beQuiet};
+         forceNew, saveData, beQuiet, onlyId};
 end
 
 % Get the input and output file names
-function [outputPath, outputFile, outputExists] = ...
+function [outputPath, outputFile, deg1Id] = ...
         getoutputfile(pcenter, rlevel, replaceWGad, giaModel, ...
         includeC20, L, Lsle, oceanDomain, method)
     outputFolder = fullfile(getenv('GRACEDATA'), 'Degree1', 'new');
@@ -324,13 +332,13 @@ function [outputPath, outputFile, outputExists] = ...
             methodFlag = sprintf('-%s', method);
     end
 
-    outputFile = sprintf('%s_%s%s-%s%s-L%d_Lsle%d-%s%s.mat', ...
+    deg1Id = sprintf('%s_%s%s-%s%s-L%d_Lsle%d-%s%s', ...
         pcenter, rlevel, replaceWGadFlag, giaModel, ...
         includeC20Flag, L, Lsle, oceanDomain.Id, methodFlag);
 
-    outputPath = fullfile(outputFolder, outputFile);
+    outputFile = sprintf('%s.mat', deg1Id);
 
-    outputExists = exist(outputPath, 'file');
+    outputPath = fullfile(outputFolder, outputFile);
 end
 
 % Heart of the programme

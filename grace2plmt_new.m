@@ -33,7 +33,7 @@
 %       you to choose between them.
 %       The default L is 60.
 %       Data type: [numeric]
-%   unit - Unit of the output
+%   Unit - Unit of the output
 %       - 'GRAV': Surface gravity (this is POT in SLEPIAN_ALPHA).
 %       - 'POT': Geopotential field (surface gravity * equatorial radius).
 %       - 'SD': Surface mass density.
@@ -55,10 +55,22 @@
 %       The default option is 'timefirst' (to be consistent with
 %       GRACE2PLMT).
 %       Data type: char
-%   Deg1Correction, C20Correction, C30Correction - Whether to apply these
-%       corrections
+%   Deg1Correction, C20Correction, C30Correction - Logical flag to apply
+%       these corrections
 %       The default options are all true.
 %       Data type: logical | ([numeric])
+%   RecomputeDegree1 - Logical flag to recompute the degree 1 coefficients
+%       - false: Do not recompute the degree 1 coefficients.
+%       - true: Recompute the degree 1 coefficients using degree 60 input
+%           data, SLE solved at degree 180, ICE-6G_D (VM5a) model is used
+%           for GIA correction, and the ocean function has a buffer of
+%           0.5°.
+%       - Name of some GIA model (e.g. 'Caron18): Same as above, but using
+%           the specified GIA model instead of ICE-6G_D (VM5a).
+%       - Some cell array: These options are passed to the SOLVEDEGREE1
+%           function.
+%       The default option is false.
+%       Data type: logical | char | cell array
 %	ForceNew - Logical flag to force reprocess of the data
 %		- true: Reprocess the data
 %		- false: Only reprocess if previous output is not found
@@ -81,7 +93,7 @@
 %   plmt - SH coefficients of the gravity field
 %       Units: m/s^2 (POT) | kg/m^2 (SD)
 %       Data type: DOUBLE
-%       Dimension: [nmonths x addmup(L) x 4] | [addmup(L) x 4 x nmonths]
+%       Dimension: [ndates x addmup(L) x 4] | [addmup(L) x 4 x ndates]
 %           (depending on the OutputFormat input)
 %   stdPlmt - Standard deviation of the SH coefficients
 %       The data type and dimension are the same as for plmt.
@@ -90,7 +102,7 @@
 %       input data.
 %       Datatype: DATATIME | DOUBLE
 %           (depending on the TimeFormat input)
-%       Dimension: [nmonths x 1]
+%       Dimension: [ndates x 1]
 %
 % Data sources
 %	GRACE data available from NASA PODAAC:
@@ -104,7 +116,7 @@
 %   printed to the log file instead.
 %
 % Last modified by
-%   2025/05/22, williameclee@arizona.edu (@williameclee)
+%   2025/05/23, williameclee@arizona.edu (@williameclee)
 %   2022/05/18, charig@email.arizona.edu (@harig00)
 %   2020/11/09, lashokkumar@arizona.edu
 %   2019/03/18, mlubeck@email.arizona.edu
@@ -290,17 +302,20 @@ function [gracePlmt, graceStdPlmt, dates, gravityParam, equatorRadius] = ...
 
         if ~isempty(deg1corrFailedDates)
             warning(sprintf('%s:NoTNReplacementAvailable', upper(mfilename)), ...
-                'No degree 1 replacement for the following dates:\n%s', strjoin(string(deg1corrFailedDates), ', '));
+                'No degree 1 replacement for the following dates:\n%s', ...
+                strjoin(string(deg1corrFailedDates), ', '));
         end
 
         if ~isempty(c20corrFailedDates)
             warning(sprintf('%s:NoTNReplacementAvailable', upper(mfilename)), ...
-                'No C20 replacement for the following dates:\n%s', strjoin(string(c20corrFailedDates), ', '));
+                'No C20 replacement for the following dates:\n%s', ...
+                strjoin(string(c20corrFailedDates), ', '));
         end
 
         if ~isempty(c30corrFailedDates)
             warning(sprintf('%s:NoTNReplacementAvailable', upper(mfilename)), ...
-                'No C30 replacement for the following dates (likely because C30 replacement is only available for GFO):\n%s', strjoin(string(c30corrFailedDates), ', '));
+                'No C30 replacement for the following dates (likely because C30 replacement is only available for GFO):\n%s', ...
+                strjoin(string(c30corrFailedDates), ', '));
         end
 
     end
@@ -331,35 +346,54 @@ end
 
 % Parse input arguments
 function varargout = parseinputs(varargin)
+    % Have to define the default values and use CONDDEFVAL in this
+    % complicated way because other functions (e.g. GRACE2SLEPT_NEW) may
+    % pass in empty values to indicate that they want to use the default
+    % values.
+    dfOpt.Pcenter = 'CSR';
+    dfOpt.Rlevel = 'RL06';
+    dfOpt.Ldata = 60;
+    dfOpt.Unit = 'SD';
+    dfOpt.TimeRange = [];
+    dfOpt.Deg1Correction = true;
+    dfOpt.C20Correction = true;
+    dfOpt.C30Correction = true;
+    dfOpt.RecomputeDegree1 = false;
+    dfOpt.OutputFormat = 'timefirst';
+    dfOpt.TimeFormat = 'datenum';
+    dfOpt.ForceNew = 0.5;
+    dfOpt.SaveData = true;
+    dfOpt.BeQuiet = 0.5;
+
     ip = inputParser;
-    addOptional(ip, 'Pcenter', 'CSR', ...
+    addOptional(ip, 'Pcenter', dfOpt.Pcenter, ...
         @(x) ischar(validatestring(x, {'CSR', 'GFZ', 'JPL'})));
-    addOptional(ip, 'Rlevel', 'RL06', ...
+    addOptional(ip, 'Rlevel', dfOpt.Rlevel, ...
         @(x) (isnumeric(x) && isscalar(x)) || ...
         (ischar(validatestring(x, {'RL04', 'RL05', 'RL06'}))));
-    addOptional(ip, 'Ldata', 60, ...
+    addOptional(ip, 'Ldata', dfOpt.Ldata, ...
         @(x) isnumeric(x) && x > 0);
-    addOptional(ip, 'Unit', 'SD', ...
+    addOptional(ip, 'Unit', dfOpt.Unit, ...
         @(x) ischar(validatestring(x, {'GRAV', 'POT', 'SD'})));
-    addOptional(ip, 'TimeRange', [], ...
+    addOptional(ip, 'TimeRange', dfOpt.TimeRange, ...
         @(x) ((isdatetime(x) || isnumeric(x)) && length(x) == 2) || isempty(x));
-    addParameter(ip, 'Deg1Correction', true, ...
-        @(x) (isnumeric(x) || islogical(x)) && isscalar(x));
-    addParameter(ip, 'C20Correction', true, ...
-        @(x) (isnumeric(x) || islogical(x)) && isscalar(x));
-    addParameter(ip, 'C30Correction', true, ...
-        @(x) (isnumeric(x) || islogical(x)) && isscalar(x));
-    addParameter(ip, 'RecomputeDegree1', false, ...
+    addParameter(ip, 'Deg1Correction', dfOpt.Deg1Correction, ...
+        @(x) ((isnumeric(x) || islogical(x)) && isscalar(x)) || isempty(x));
+    addParameter(ip, 'C20Correction', dfOpt.C20Correction, ...
+        @(x) ((isnumeric(x) || islogical(x)) && isscalar(x)) || isempty(x));
+    addParameter(ip, 'C30Correction', dfOpt.C30Correction, ...
+        @(x) ((isnumeric(x) || islogical(x)) && isscalar(x)) || isempty(x));
+    addParameter(ip, 'RecomputeDegree1', dfOpt.RecomputeDegree1, ...
         @(x) islogical(x) || iscell(x) || ischar(x));
-    addParameter(ip, 'OutputFormat', 'timefirst', ...
+    addParameter(ip, 'OutputFormat', dfOpt.OutputFormat, ...
         @(x) ischar(validatestring(x, {'timefirst', 'traditional'})));
-    addParameter(ip, 'TimeFormat', 'datenum', ...
+    addParameter(ip, 'TimeFormat', dfOpt.TimeFormat, ...
         @(x) ischar(validatestring(x, {'datetime', 'datenum'})));
-    addParameter(ip, 'ForceNew', 0.5, ...
+    addParameter(ip, 'ForceNew', dfOpt.ForceNew, ...
         @(x) (isnumeric(x) || islogical(x)) && isscalar(x));
-    addParameter(ip, 'SaveData', true, ...
+    addParameter(ip, 'SaveData', dfOpt.SaveData, ...
         @(x) (isnumeric(x) || islogical(x)) && isscalar(x));
-    addParameter(ip, 'BeQuiet', 0.5, ...
+    addParameter(ip, 'BeQuiet', dfOpt.BeQuiet, ...
         @(x) (isnumeric(x) || islogical(x)) && isscalar(x));
 
     if iscell(varargin{1})
@@ -368,20 +402,27 @@ function varargout = parseinputs(varargin)
 
     parse(ip, varargin{:});
 
-    Pcenter = ip.Results.Pcenter;
-    Rlevel = ip.Results.Rlevel;
-    Ldata = round(ip.Results.Ldata);
-    unit = ip.Results.Unit;
-    timelim = ip.Results.TimeRange;
-    deg1correction = logical(ip.Results.Deg1Correction);
-    c20correction = logical(ip.Results.C20Correction);
-    c30correction = logical(ip.Results.C30Correction);
-    redoDeg1 = ip.Results.RecomputeDegree1;
-    outputFmt = ip.Results.OutputFormat;
-    timeFmt = ip.Results.TimeFormat;
-    forceNew = uint8(double(ip.Results.ForceNew) * 2);
-    saveData = logical(ip.Results.SaveData);
-    beQuiet = uint8(double(ip.Results.BeQuiet) * 2);
+    Pcenter = conddefval(ip.Results.Pcenter, dfOpt.Pcenter);
+    Rlevel = conddefval(ip.Results.Rlevel, dfOpt.Rlevel);
+    Ldata = conddefval(round(ip.Results.Ldata), dfOpt.Ldata);
+    unit = conddefval(ip.Results.Unit, dfOpt.Unit);
+    timelim = conddefval(ip.Results.TimeRange, dfOpt.TimeRange);
+    deg1correction = ...
+        conddefval(logical(ip.Results.Deg1Correction), dfOpt.Deg1Correction);
+    c20correction = ...
+        conddefval(logical(ip.Results.C20Correction), dfOpt.C20Correction);
+    c30correction = ...
+        conddefval(logical(ip.Results.C30Correction), dfOpt.C30Correction);
+    redoDeg1 = ...
+        conddefval(ip.Results.RecomputeDegree1, dfOpt.RecomputeDegree1);
+    outputFmt = ...
+        conddefval(ip.Results.OutputFormat, dfOpt.OutputFormat);
+    timeFmt = conddefval(ip.Results.TimeFormat, dfOpt.TimeFormat);
+    forceNew = ...
+        uint8(double(conddefval(ip.Results.ForceNew, dfOpt.ForceNew)) * 2);
+    saveData = conddefval(logical(ip.Results.SaveData), dfOpt.SaveData);
+    beQuiet = ...
+        uint8(double(conddefval(ip.Results.BeQuiet, dfOpt.BeQuiet)) * 2);
 
     if isnumeric(Rlevel)
         Rlevel = sprintf('RL%02d', floor(Rlevel));
@@ -405,7 +446,7 @@ end
 
 % Format the output
 function [gracePlmt, dates] = ...
-        formatoutput(gracePlmt, dates, timelim, outputFormat, timeFormat)
+        formatoutput(gracePlmt, dates, timelim, outputFmt, timeFmt)
 
     if ~isempty(timelim)
         % Only keep the data within the specified time range
@@ -415,26 +456,12 @@ function [gracePlmt, dates] = ...
         dates = dates(isValidTime);
     end
 
-    switch outputFormat
-        case 'timefirst'
-            % Do nothing
-        case 'traditional'
-            gracePlmt = permute(gracePlmt, [2, 3, 1]);
+    if strcmp(outputFmt, 'traditional')
+        gracePlmt = permute(gracePlmt, [2, 3, 1]);
     end
 
-    switch timeFormat
-        case 'datenum'
-
-            if isdatetime(dates)
-                dates = datenum(dates); %#ok<DATNM>
-            end
-
-        case 'datetime'
-
-            if isnumeric(dates)
-                dates = datetime(dates, "ConvertFrom", 'datenum');
-            end
-
+    if strcmp(timeFmt, 'datenum')
+        dates = datenum(dates); %#ok<DATNM>
     end
 
 end
