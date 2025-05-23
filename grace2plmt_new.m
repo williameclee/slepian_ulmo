@@ -184,7 +184,7 @@ function varargout = grace2plmt_new(varargin)
     %% Post-processing and formatting
     % Recalculate degree 1 coefficients
     if iscell(redoDeg1)
-        [~, myDeg1, ~] = solvedegree1(Pcenter, Rlevel, redoDeg1{:});
+        [myDeg1, ~, ~] = solvedegree1(Pcenter, Rlevel, redoDeg1{:});
         myDeg1 = myDeg1 - mean(myDeg1, 1);
 
         myDeg1 = convertgravity(myDeg1, 'SD', unit, ...
@@ -193,6 +193,11 @@ function varargout = grace2plmt_new(varargin)
         gracePlmt(:, 2, 3) = myDeg1(:, 1);
         gracePlmt(:, 3, 3) = myDeg1(:, 2);
         gracePlmt(:, 3, 4) = myDeg1(:, 3);
+
+        if size(gracePlmt, 2) == 4
+            gracePlmt(:, 4, 3) = myDeg1(:, 4);
+        end
+
     end
 
     % Format output

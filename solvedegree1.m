@@ -41,18 +41,6 @@
 %       GeoDomain object.
 %       The default ocean domain is the global ocean (ALLOCEANS) with a
 %       0.5° buffer.
-%   ReferenceEpoch - Reference epoch
-%       When specified, the coefficients will be removed by the mean of the
-%       specified time range.
-%       Possible input formats include (but not necessarily limited to):
-%       - A DATETIME/DATENUM object as the centre of the epoch
-%       - A 2-element DATETIME/DATENUM array as the start and end of the
-%           epoch
-%       - A 2-element cell array as the centre (DATETIME/DATENUM) and
-%           half-length (DURATION/DATENUM in years) of the epoch
-%       The defualt reference epoch is centred at Jan 1, 2008, with a
-%           5-year half-length (similar to TN-13).
-%       Data type: DATETIME | DATENUM | cell
 %   IncludeC20 - Whether to also recompute C20
 %       The default option is false, as C20 is usually replaced with SLR
 %       values.
@@ -109,34 +97,31 @@
 function varargout = solvedegree1(varargin)
     %% Initialisation
     % Parse inputs
-    [pcenter, rlevel, Ldata, Lsle, giaModel, oceanDomain, ...
-         refEpochLim, includeC20, replaceWGad, method, timelim, ...
+    [pcenter, rlevel, Ldata, Ltruncation, Lsle, giaModel, oceanDomain, ...
+         includeC20, replaceWGad, method, timelim, ...
          forceNew, saveData, beQuiet, onlyId] = ...
         parseinputs(varargin);
 
     [dataPath, ~, outputId] = ...
-        getoutputfile(pcenter, rlevel, replaceWGad, giaModel, ...
-        includeC20, Ldata, Lsle, oceanDomain, method);
+        getoutputfile(pcenter, rlevel, Ldata, replaceWGad, giaModel, ...
+        includeC20, Ltruncation, Lsle, oceanDomain, method);
 
     if onlyId
         varargout = {outputId};
         return
     end
 
-    [graceSpht, ~, dates] = grace2plmt_new(pcenter, rlevel, 60, ...
-        "Unit", 'SD', "OutputFormat", 'traditional', "BeQuiet", beQuiet);
-    graceSpht = graceSpht(1:addmup(Ldata), 1:4, :);
+    [gracePlmt, ~, dates] = grace2plmt_new(pcenter, rlevel, Ldata, ...
+        "Unit", 'SD', "OutputFormat", 'timefirst', "TimeFormat", 'datetime', ...
+        "BeQuiet", beQuiet + (beQuiet == 1));
+    gracePlmt = gracePlmt(:, 1:addmup(Ltruncation), 1:4);
 
-    if Ldata < Lsle
+    if Ltruncation < Lsle
         [order, degree] = addmon(Lsle);
-        graceSpht(1:addmup(Lsle), 1, :) = ...
-            repmat(degree, [1, 1, size(graceSpht, 3)]);
-        graceSpht(1:addmup(Lsle), 2, :) = ...
-            repmat(order, [1, 1, size(graceSpht, 3)]);
-    end
-
-    if isnumeric(dates)
-        dates = datetime(dates, "ConvertFrom", 'datenum');
+        gracePlmt(:, 1:addmup(Lsle), 1) = ...
+            repmat(reshape(degree, [1, length(degree)]), [size(gracePlmt, 1), 1]);
+        gracePlmt(:, 1:addmup(Lsle), 2) = ...
+            repmat(reshape(order, [1, length(degree)]), [size(gracePlmt, 1), 1]);
     end
 
     if includeC20
@@ -145,18 +130,18 @@ function varargout = solvedegree1(varargin)
         coeffsId = [2, 3, addmup(Lsle) + 3]';
     end
 
-    if exist("dataPath", 'file') && ~forceNew
-        load(dataPath, 'coeffs')
+    if exist(dataPath, 'file') && ~forceNew
+        load(dataPath, 'coeffs', 'dates')
 
         if beQuiet <= 1
             fprintf('%s loaded %s\n', upper(mfilename), dataPath)
         end
 
     else
-        coeffs = solvedegree1Core(pcenter, rlevel, graceSpht, replaceWGad, Lsle, dates, giaModel, refEpochLim, includeC20, oceanDomain, coeffsId, method, beQuiet);
+        coeffs = solvedegree1Core(pcenter, rlevel, gracePlmt, replaceWGad, Lsle, dates, giaModel, includeC20, oceanDomain, coeffsId, method, beQuiet);
 
         if saveData
-            save(dataPath, 'coeffs')
+            save(dataPath, 'coeffs', 'dates')
 
             if beQuiet <= 1
                 fprintf('%s saved %s\n', upper(mfilename), dataPath)
@@ -170,200 +155,44 @@ function varargout = solvedegree1(varargin)
         isTimeRange = dates >= timelim(1) & dates <= timelim(2);
         dates = dates(isTimeRange);
         coeffs = coeffs(isTimeRange, :);
-        graceSpht = graceSpht(:, :, isTimeRange);
+        gracePlmt = gracePlmt(isTimeRange, :, :);
     end
 
-    if nargout == 1
-        varargout = {coeffs};
-        return
-    elseif nargout == 2
-        varargout = {dates, coeffs};
+    if nargout <= 2
+        varargout = {coeffs, dates};
         return
     end
 
-    graceSpht(2, 3, :) = coeffs(:, 1);
-    graceSpht(3, 3, :) = coeffs(:, 2);
-    graceSpht(3, 4, :) = coeffs(:, 3);
+    gracePlmt(:, 2, 3) = coeffs(:, 1);
+    gracePlmt(:, 3, 3) = coeffs(:, 2);
+    gracePlmt(:, 3, 4) = coeffs(:, 3);
 
     if includeC20
-        graceSpht(4, 3, :) = coeffs(:, 4);
+        gracePlmt(:, 4, 3) = coeffs(:, 4);
     end
 
-    if ~isempty(refEpochLim)
-        isMeanEpoch = dates >= refEpochLim(1) & dates <= refEpochLim(2);
-        graceSpht(:, 3:4, isMeanEpoch) = ...
-            graceSpht(:, 3:4, isMeanEpoch) + mean(graceSpht(:, 3:4, isMeanEpoch), 3);
-    end
-
-    varargout = {dates, coeffs, graceSpht};
+    varargout = {coeffs, dates, gracePlmt};
 
 end
 
 %% Subfunctions
-% Parse input arguments
-function varargout = parseinputs(inputs)
-    % Set default parameters
-    defaultPcenter = 'CSR';
-    defaultRlevel = 'RL06';
-    defaultL = 45;
-    defaultLsle = 96;
-    defaultGiaModel = 'ice6gd';
-    defaultOceanDomain = GeoDomain('alloceans', "Buffer", 1.5); % Sun et al. (2016)
-    defaultRefEpoch = {datetime(2008, 01, 01), years(5)}; % similar to TN-13
-    defaultIncludeC20 = false;
-    refaultReplaceWGad = true;
-    defaultMethod = 'fingerprint';
-    % Construct input parser
-    ip = inputParser;
-    addOptional(ip, 'Pcenter', defaultPcenter, ...
-        @(x) ischar(validatestring(x, {'CSR', 'GFZ', 'JPL'})));
-    addOptional(ip, 'Rlevel', defaultRlevel, ...
-        @(x) ischar(validatestring(x, {'RL04', 'RL05', 'RL06'})));
-    addOptional(ip, 'Ldata', defaultL, ...
-        @(x) isscalar(x) && isnumeric(x) && x > 0);
-    addOptional(ip, 'Lsle', defaultLsle, ...
-        @(x) isscalar(x) && isnumeric(x) && x > 0);
-    addOptional(ip, 'GiaModel', defaultGiaModel, ...
-        @(x) ischar(x));
-    addOptional(ip, 'OceanDomain', defaultOceanDomain, ...
-        @(x) isa(x, 'GeoDomain'));
-    addOptional(ip, 'ReferenceEpoch', defaultRefEpoch);
-    addOptional(ip, 'IncludeC20', defaultIncludeC20, ...
-        @(x) islogical(x) || isnumeric(x));
-    addOptional(ip, 'ReplaceWithGAD', refaultReplaceWGad, ...
-        @(x) islogical(x) || isnumeric(x));
-    addOptional(ip, 'Method', defaultMethod, ...
-        @(x) ischar(validatestring(x, {'fingerprint', 'uniform'})));
-    addOptional(ip, 'TimeRange', [], ...
-        @(x) isempty(x) || isdatetime(x) || isnumeric(x));
-    addParameter(ip, 'ForceNew', false, ...
-        @(x) (isnumeric(x) || islogical(x)) && isscalar(x));
-    addParameter(ip, 'SaveData', true, ...
-        @(x) (isnumeric(x) || islogical(x)) && isscalar(x));
-    addParameter(ip, 'BeQuiet', 0.5, ...
-        @(x) (isnumeric(x) || islogical(x)) && isscalar(x));
-    addParameter(ip, 'OnlyId', false, ...
-        @(x) (isnumeric(x) || islogical(x)) && isscalar(x));
-    parse(ip, inputs{:});
-
-    pcenter = ip.Results.Pcenter;
-    rlevel = ip.Results.Rlevel;
-    Ldata = ip.Results.Ldata;
-    Lsle = ip.Results.Lsle;
-    giaModel = ip.Results.GiaModel;
-    oceanDomain = ip.Results.OceanDomain;
-    refEpoch = ip.Results.ReferenceEpoch;
-    includeC20 = logical(ip.Results.IncludeC20);
-    replaceWGad = logical(ip.Results.ReplaceWithGAD);
-    method = ip.Results.Method;
-    timelim = ip.Results.TimeRange;
-    forceNew = logical(ip.Results.ForceNew);
-    saveData = logical(ip.Results.SaveData);
-    beQuiet = ip.Results.BeQuiet * 2;
-    onlyId = logical(ip.Results.OnlyId);
-
-    % Obtain reference epoch
-    refEpochHLength = years(5);
-
-    if isempty(refEpoch) || ...
-            (isscalar(refEpoch) && (isnan(refEpoch) || isnat(refEpoch)))
-        refEpochLim = [];
-    elseif isscalar(refEpoch)
-
-        if isnumeric(refEpoch)
-            refEpoch = datetime(refEpoch, "ConvertFrom", 'datenum');
-        end
-
-        refEpochCentre = refEpoch;
-
-        refEpochLim = refEpochCentre + refEpochHLength * [-1, 1];
-    elseif isdatetime(refEpoch) && length(refEpoch) == 2
-        refEpochLim = refEpoch;
-    elseif iscell(refEpoch) && length(refEpoch) == 2
-        refEpochCentre = refEpoch{1};
-        refEpochHLength = refEpoch{2};
-
-        if isnumeric(refEpochCentre)
-            refEpochCentre = datetime(refEpochCentre, "ConvertFrom", 'datenum');
-        end
-
-        if isnumeric(refEpochHLength)
-            refEpochHLength = years(refEpochHLength);
-        end
-
-        refEpochLim = refEpochCentre + refEpochHLength * [-1, 1];
-    end
-
-    varargout = ...
-        {pcenter, rlevel, Ldata, Lsle, giaModel, oceanDomain, refEpochLim, ...
-         includeC20, replaceWGad, method, timelim, ...
-         forceNew, saveData, beQuiet, onlyId};
-end
-
-% Get the input and output file names
-function [outputPath, outputFile, deg1Id] = ...
-        getoutputfile(pcenter, rlevel, replaceWGad, giaModel, ...
-        includeC20, L, Lsle, oceanDomain, method)
-    outputFolder = fullfile(getenv('GRACEDATA'), 'Degree1', 'new');
-
-    if ~exist(outputFolder, 'dir')
-        mkdir(outputFolder);
-        fprintf('%s created folder %s\n', upper(mfilename), outputFolder);
-    end
-
-    if replaceWGad
-        replaceWGadFlag = '_RGAD';
-    else
-        replaceWGadFlag = '';
-    end
-
-    if includeC20
-        includeC20Flag = '-WC20';
-    else
-        includeC20Flag = '';
-    end
-
-    switch method
-        case 'fingerprint'
-            methodFlag = '';
-        case 'uniform'
-            methodFlag = '-uniform';
-        otherwise
-            methodFlag = sprintf('-%s', method);
-    end
-
-    deg1Id = sprintf('%s_%s%s-%s%s-L%d_Lsle%d-%s%s', ...
-        pcenter, rlevel, replaceWGadFlag, giaModel, ...
-        includeC20Flag, L, Lsle, oceanDomain.Id, methodFlag);
-
-    outputFile = sprintf('%s.mat', deg1Id);
-
-    outputPath = fullfile(outputFolder, outputFile);
-end
-
 % Heart of the programme
-function coeffs = solvedegree1Core(pcenter, rlevel, graceSpht, replaceWGad, Lsle, dates, giaModel, refEpochLim, includeC20, oceanDomain, coeffsId, method, beQuiet)
+function coeffs = ...
+        solvedegree1Core(pcenter, rlevel, gracePlmt, rwGad, Lsle, dates, giaModel, includeC20, oceanDomain, coeffsId, method, beQuiet)
     % Add back GAC and remove GAD instead (Sun et al., 2016)
-    if replaceWGad
-        [gacSpht, ~] = aod1b2plmt(pcenter, rlevel, 'GAC', Lsle, ...
-            "OutputFormat", 'traditional', "BeQuiet", beQuiet);
-        [gadSpht, ~] = aod1b2plmt(pcenter, rlevel, 'GAD', Lsle, ...
-            "OutputFormat", 'traditional', "BeQuiet", beQuiet);
-        graceSpht(:, 3:4, :) = graceSpht(:, 3:4, :) ...
-            + gacSpht(:, 3:4, :) - gadSpht(:, 3:4, :);
+    if rwGad
+        gacPlmt = aod1b2plmt(pcenter, rlevel, 'GAC', Lsle, ...
+            "OutputFormat", 'timefirst', "BeQuiet", beQuiet + (beQuiet == 1));
+        gadPlmt = aod1b2plmt(pcenter, rlevel, 'GAD', Lsle, ...
+            "OutputFormat", 'timefirst', "BeQuiet", beQuiet + (beQuiet == 1));
+        gracePlmt(:, :, 3:4) = gracePlmt(:, :, 3:4) ...
+            + gacPlmt(:, :, 3:4) - gadPlmt(:, :, 3:4);
     end
 
     % Remove GIA signal for l >= 2 (Sun et al., 2016)
-    giaSpht = gia2plmt(dates, giaModel, "L", Lsle, ...
-        "OutputFormat", 'traditional', "BeQuiet", beQuiet);
-    graceSpht(3:end, 3:4, :) = graceSpht(3:end, 3:4, :) - giaSpht(3:end, 3:4, :);
-
-    % Remove time mean, similar as in TN13
-    if ~isempty(refEpochLim)
-        isMeanEpoch = dates >= refEpochLim(1) & dates <= refEpochLim(2);
-        graceSpht(:, 3:4, :) = ...
-            graceSpht(:, 3:4, :) - mean(graceSpht(:, 3:4, isMeanEpoch), 3);
-    end
+    giaPlmt = gia2plmt(dates, giaModel, "L", Lsle, ...
+        "OutputFormat", 'timefirst', "BeQuiet", beQuiet + (beQuiet == 1));
+    gracePlmt(:, 3:end, 3:4) = gracePlmt(:, 3:end, 3:4) - giaPlmt(:, 3:end, 3:4);
 
     % Whether to also reestimate C20
     if includeC20
@@ -373,51 +202,51 @@ function coeffs = solvedegree1Core(pcenter, rlevel, graceSpht, replaceWGad, Lsle
     end
 
     % Precompute kernels
-    oceanKernelSle = kernelcp_new(Lsle, oceanDomain, "BeQuiet", true);
+    oceanKernelSle = kernelcp_new(Lsle, oceanDomain, ...
+        "BeQuiet", beQuiet + (beQuiet == 1));
     landKernelSle = eye(size(oceanKernelSle)) - oceanKernelSle;
     coeffsKernel = ...
         oceanKernelSle(2:1 + length(coeffsId), 2:1 + length(coeffsId));
     [~, ~, ~, ~, ~, oceanFunSph] = ...
-        geoboxcap(Lsle, oceanDomain, "BeQuiet", beQuiet);
+        geoboxcap(Lsle, oceanDomain, "BeQuiet", beQuiet + (beQuiet == 1));
     kernelOrder = kernelorder(Lsle);
 
     % Decently fast, no need to use parfor
     for iDate = 1:length(dates)
         coeffs(iDate, :) = ...
-            solvedegree1Iter(graceSpht(:, 3:4, iDate), oceanDomain, ...
+            solvedegree1Iter(squeeze(gracePlmt(iDate, :, 3:4)), oceanDomain, ...
             Lsle, coeffsKernel, coeffsId, ...
             oceanKernelSle, landKernelSle, oceanFunSph, kernelOrder, ...
             method, beQuiet);
 
         if beQuiet <= 1 && mod(iDate, 10) == 0
             fprintf('%s processed %s (%3d/%3d)\n', ...
-                upper(mfilename), ...
-                datetime(dates(iDate), "Format", 'uuuu/MM/dd'), ...
+                upper(mfilename), dates(iDate), ...
                 iDate, length(dates));
         end
 
     end
 
     % Restore GAC/GAD
-    if replaceWGad
+    if rwGad
         coeffs(:, 1) = ...
-            coeffs(:, 1) - squeeze(gacSpht(2, 3, :) - gadSpht(2, 3, :));
+            coeffs(:, 1) - squeeze(gacPlmt(:, 2, 3) - gadPlmt(:, 2, 3));
         coeffs(:, 2) = ...
-            coeffs(:, 2) - squeeze(gacSpht(3, 3, :) - gadSpht(3, 3, :));
+            coeffs(:, 2) - squeeze(gacPlmt(:, 3, 3) - gadPlmt(:, 3, 3));
         coeffs(:, 3) = ...
-            coeffs(:, 3) - squeeze(gacSpht(3, 4, :) - gadSpht(3, 4, :));
+            coeffs(:, 3) - squeeze(gacPlmt(:, 3, 4) - gadPlmt(:, 3, 4));
 
         if includeC20
             coeffs(:, 4) = ...
-                coeffs(:, 4) - squeeze(gacSpht(4, 3, :) - gadSpht(4, 3, :));
+                coeffs(:, 4) - squeeze(gacPlmt(:, 4, 3) - gadPlmt(:, 4, 3));
         end
 
     end
 
-    % Restore GIA signal for l >= 2
+    % Restore GIA signal for C20
     if includeC20
         coeffs(:, 4) = coeffs(:, 4) + ...
-            squeeze(giaSpht(4, 3, :));
+            squeeze(giaPlmt(:, 4, 3));
     end
 
 end
@@ -442,7 +271,7 @@ function [coeffs, graceSph] = ...
                     solvesle(landSph, Lsle, "Ocean", oceanDomain, ...
                     "OceanKernel", oceanKernelSle, "OceanFunction", oceanFunSph, ...
                     "KernelOrder", kernelOrder, ...
-                    "RotationFeedback", true, "BeQuiet", beQuiet);
+                    "RotationFeedback", true, "BeQuiet", beQuiet + (beQuiet == 1));
                 oceanSph = oceanSph(1:addmup(Lsle), :); % Truncate to original L
                 oceanCoeffs = oceanSph(coeffsId);
             case 'uniform'
@@ -454,4 +283,113 @@ function [coeffs, graceSph] = ...
         graceSph(coeffsId) = coeffs;
     end
 
+end
+
+% Parse input arguments
+function varargout = parseinputs(inputs)
+    % Set default parameters
+    deOpt.Pcenter = 'CSR';
+    deOpt.Rlevel = 'RL06';
+    dfOpt.Ldata = 60;
+    dfOpt.Ltruncation = 45;
+    dfOpt.Lsle = 96;
+    dfOpt.GiaModel = 'ice6gd';
+    dfOpt.OceanDomain = GeoDomain('alloceans', "Buffer", 0.5); % Sun et al. (2016)
+    dfOpt.IncludeC20 = false;
+    dfOpt.RwGAD = true;
+    dfOpt.Method = 'fingerprint';
+    % Construct input parser
+    ip = inputParser;
+    addOptional(ip, 'Pcenter', deOpt.Pcenter, ...
+        @(x) ischar(validatestring(x, {'CSR', 'GFZ', 'JPL'})));
+    addOptional(ip, 'Rlevel', deOpt.Rlevel, ...
+        @(x) ischar(validatestring(x, {'RL04', 'RL05', 'RL06'})));
+    addOptional(ip, 'Ldata', dfOpt.Ldata, ...
+        @(x) isscalar(x) && isnumeric(x) && x > 0);
+    addOptional(ip, 'Ltruncation', dfOpt.Ltruncation, ...
+        @(x) isscalar(x) && isnumeric(x) && x > 0);
+    addOptional(ip, 'Lsle', dfOpt.Lsle, ...
+        @(x) isscalar(x) && isnumeric(x) && x > 0);
+    addOptional(ip, 'GiaModel', dfOpt.GiaModel, ...
+        @(x) ischar(x));
+    addOptional(ip, 'OceanDomain', dfOpt.OceanDomain, ...
+        @(x) isa(x, 'GeoDomain'));
+    addOptional(ip, 'IncludeC20', dfOpt.IncludeC20, ...
+        @(x) islogical(x) || isnumeric(x));
+    addOptional(ip, 'ReplaceWithGAD', dfOpt.RwGAD, ...
+        @(x) islogical(x) || isnumeric(x));
+    addOptional(ip, 'Method', dfOpt.Method, ...
+        @(x) ischar(validatestring(x, {'fingerprint', 'uniform'})));
+    addOptional(ip, 'TimeRange', [], ...
+        @(x) isempty(x) || isdatetime(x) || isnumeric(x));
+    addParameter(ip, 'ForceNew', false, ...
+        @(x) (isnumeric(x) || islogical(x)) && isscalar(x));
+    addParameter(ip, 'SaveData', true, ...
+        @(x) (isnumeric(x) || islogical(x)) && isscalar(x));
+    addParameter(ip, 'BeQuiet', 0.5, ...
+        @(x) (isnumeric(x) || islogical(x)) && isscalar(x));
+    addParameter(ip, 'OnlyId', false, ...
+        @(x) (isnumeric(x) || islogical(x)) && isscalar(x));
+    parse(ip, inputs{:});
+
+    pcenter = ip.Results.Pcenter;
+    rlevel = ip.Results.Rlevel;
+    Ldata = ip.Results.Ldata;
+    Ltruncation = ip.Results.Ltruncation;
+    Lsle = ip.Results.Lsle;
+    giaModel = ip.Results.GiaModel;
+    oceanDomain = ip.Results.OceanDomain;
+    includeC20 = logical(ip.Results.IncludeC20);
+    replaceWGad = logical(ip.Results.ReplaceWithGAD);
+    method = ip.Results.Method;
+    timelim = ip.Results.TimeRange;
+    forceNew = logical(ip.Results.ForceNew);
+    saveData = logical(ip.Results.SaveData);
+    beQuiet = double(ip.Results.BeQuiet) * 2;
+    onlyId = logical(ip.Results.OnlyId);
+
+    varargout = ...
+        {pcenter, rlevel, Ldata, Ltruncation, Lsle, giaModel, oceanDomain, ...
+         includeC20, replaceWGad, method, timelim, ...
+         forceNew, saveData, beQuiet, onlyId};
+end
+
+% Get the input and output file names
+function [outputPath, outputFile, deg1Id] = ...
+        getoutputfile(pcenter, rlevel, Ldata, replaceWGad, giaModel, ...
+        includeC20, Ltruncation, Lsle, oceanDomain, method)
+    outputFolder = fullfile(getenv('GRACEDATA'), 'Degree1', 'new');
+
+    if ~exist(outputFolder, 'dir')
+        mkdir(outputFolder);
+        fprintf('%s created folder %s\n', upper(mfilename), outputFolder);
+    end
+
+    gadFlag = '';
+
+    if replaceWGad
+        gadFlag = 'GAD';
+    end
+
+    includeC20Flag = '';
+
+    if includeC20
+        includeC20Flag = '-WC20';
+    end
+
+    switch method
+        case 'fingerprint'
+            methodFlag = '';
+        case 'uniform'
+            methodFlag = '-uniform';
+    end
+
+    productId = sprintf('%s%s%d', pcenter, rlevel, Ldata);
+    deg1Id = sprintf('%s-%s%s-Ld%d_Ls%d-%s%s', ...
+        gadFlag, giaModel, includeC20Flag, ...
+        Ltruncation, Lsle, oceanDomain.Id, methodFlag);
+
+    outputFile = sprintf('%s_%s.mat', productId, deg1Id);
+
+    outputPath = fullfile(outputFolder, outputFile);
 end
