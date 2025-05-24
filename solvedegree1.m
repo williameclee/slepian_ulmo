@@ -92,7 +92,7 @@
 %   2025/03/18, williameclee@arizona.edu (@williameclee)
 %
 % Last modified by
-%   2025/05/23, williameclee@arizona.edu (@williameclee)
+%   2025/05/24, williameclee@arizona.edu (@williameclee)
 
 function varargout = solvedegree1(varargin)
     %% Initialisation
@@ -111,121 +111,125 @@ function varargout = solvedegree1(varargin)
         return
     end
 
-    [gracePlmt, ~, dates] = grace2plmt_new(pcenter, rlevel, Ldata, ...
-        "Unit", 'SD', "OutputFormat", 'timefirst', "TimeFormat", 'datetime', ...
-        "BeQuiet", beQuiet + (beQuiet == 1));
-    gracePlmt = gracePlmt(:, 1:addmup(Ltruncation), 1:4);
-
-    if Ltruncation < Lsle
-        [order, degree] = addmon(Lsle);
-        gracePlmt(:, 1:addmup(Lsle), 1) = ...
-            repmat(reshape(degree, [1, length(degree)]), [size(gracePlmt, 1), 1]);
-        gracePlmt(:, 1:addmup(Lsle), 2) = ...
-            repmat(reshape(order, [1, length(degree)]), [size(gracePlmt, 1), 1]);
-    end
-
-    if includeC20
-        coeffsId = [2, 3, addmup(Lsle) + 3, 4]';
-    else
-        coeffsId = [2, 3, addmup(Lsle) + 3]';
-    end
-
     if exist(dataPath, 'file') && ~forceNew
         load(dataPath, 'coeffs', 'dates')
 
-        if beQuiet <= 1
-            fprintf('%s loaded %s\n', upper(mfilename), dataPath)
-        end
-
-    else
-        coeffs = solvedegree1Core(pcenter, rlevel, gracePlmt, replaceWGad, Lsle, dates, giaModel, includeC20, oceanDomain, coeffsId, method, beQuiet);
-
-        if saveData
-            save(dataPath, 'coeffs', 'dates')
+        if exist('coeffs', 'var') && exist('dates', 'var')
 
             if beQuiet <= 1
-                fprintf('%s saved %s\n', upper(mfilename), dataPath)
+                fprintf('%s loaded %s\n', upper(mfilename), dataPath)
             end
 
+            varargout = formatoutput(coeffs, dates, timelim, nargout, ...
+                {pcenter, rlevel, Ldata}, beQuiet);
+
+            return
         end
 
     end
 
-    if ~isempty(timelim)
-        isTimeRange = dates >= timelim(1) & dates <= timelim(2);
-        dates = dates(isTimeRange);
-        coeffs = coeffs(isTimeRange, :);
-        gracePlmt = gracePlmt(isTimeRange, :, :);
+    [coeffs, dates] = solvedegree1Core(pcenter, rlevel, Ldata, Ltruncation, Lsle, replaceWGad, ...
+        giaModel, includeC20, oceanDomain, method, beQuiet);
+
+    if saveData
+        save(dataPath, 'coeffs', 'dates')
+
+        if beQuiet <= 1
+            fprintf('%s saved %s\n', upper(mfilename), dataPath)
+        end
+
     end
 
-    if nargout <= 2
-        varargout = {coeffs, dates};
-        return
-    end
-
-    gracePlmt(:, 2, 3) = coeffs(:, 1);
-    gracePlmt(:, 3, 3) = coeffs(:, 2);
-    gracePlmt(:, 3, 4) = coeffs(:, 3);
-
-    if includeC20
-        gracePlmt(:, 4, 3) = coeffs(:, 4);
-    end
-
-    varargout = {coeffs, dates, gracePlmt};
+    varargout = formatoutput(coeffs, dates, timelim, nargout, ...
+        {pcenter, rlevel, Ldata}, beQuiet);
 
 end
 
 %% Subfunctions
 % Heart of the programme
-function coeffs = ...
-        solvedegree1Core(pcenter, rlevel, gracePlmt, rwGad, Lsle, dates, giaModel, includeC20, oceanDomain, coeffsId, method, beQuiet)
+function [coeffs, dates] = ...
+        solvedegree1Core(pcenter, rlevel, Ldata, Ltruncation, Lsle, rwGad, giaModel, includeC20, oceanDomain, method, beQuiet)
+    %% Loading data
+    wbar = waitbar(0, 'Loading GRACE data', ...
+        "Name", upper(mfilename), "CreateCancelBtn", 'setappdata(gcbf,''canceling'',1)');
+
+    [gracePlmt, ~, dates] = grace2plmt_new(pcenter, rlevel, Ldata, ...
+        "Unit", 'SD', "OutputFormat", 'timefirst', "TimeFormat", 'datetime', ...
+        "BeQuiet", beQuiet);
+    gracePlmt = ensureplmdegree(gracePlmt, Ltruncation);
+    gracePlmt = ensureplmdegree(gracePlmt, Lsle);
+
     % Add back GAC and remove GAD instead (Sun et al., 2016)
     if rwGad
         gacPlmt = aod1b2plmt(pcenter, rlevel, 'GAC', Lsle, ...
-            "OutputFormat", 'timefirst', "BeQuiet", beQuiet + (beQuiet == 1));
+            "OutputFormat", 'timefirst', "BeQuiet", beQuiet);
+        gacPlmt = ensureplmdegree(gacPlmt, Lsle);
         gadPlmt = aod1b2plmt(pcenter, rlevel, 'GAD', Lsle, ...
-            "OutputFormat", 'timefirst', "BeQuiet", beQuiet + (beQuiet == 1));
+            "OutputFormat", 'timefirst', "BeQuiet", beQuiet);
+        gadPlmt = ensureplmdegree(gadPlmt, Lsle);
         gracePlmt(:, :, 3:4) = gracePlmt(:, :, 3:4) ...
             + gacPlmt(:, :, 3:4) - gadPlmt(:, :, 3:4);
     end
 
     % Remove GIA signal for l >= 2 (Sun et al., 2016)
     giaPlmt = gia2plmt(dates, giaModel, "L", Lsle, ...
-        "OutputFormat", 'timefirst', "BeQuiet", beQuiet + (beQuiet == 1));
+        "OutputFormat", 'timefirst', "BeQuiet", beQuiet);
     gracePlmt(:, 3:end, 3:4) = gracePlmt(:, 3:end, 3:4) - giaPlmt(:, 3:end, 3:4);
 
-    % Whether to also reestimate C20
-    if includeC20
-        coeffs = nan([length(dates), 4]);
-    else
-        coeffs = nan([length(dates), 3]);
+    %% Preparing/preallocating variables
+    waitbar(0, wbar, 'Preparing variables');
+
+    if getappdata(wbar, 'canceling')
+        delete(wbar);
+        warning(sprintf('%s:ProcessCancelledByUser', upper(mfilename)), ...
+        'Processing cancelled');
+        fclose(logFid);
+        return
     end
 
+    % Whether to also reestimate C20
+    coeffs = nan([length(dates), 3 + includeC20]);
+
     % Precompute kernels
+    coeffsId = [2, 3, addmup(Lsle) + 3]';
+
+    if includeC20
+        coeffsId = [coeffsId; 4];
+    end
+
     oceanKernelSle = kernelcp_new(Lsle, oceanDomain, ...
-        "BeQuiet", beQuiet + (beQuiet == 1));
+        "BeQuiet", beQuiet);
     landKernelSle = eye(size(oceanKernelSle)) - oceanKernelSle;
     coeffsKernel = ...
         oceanKernelSle(2:1 + length(coeffsId), 2:1 + length(coeffsId));
-    [~, ~, ~, ~, ~, oceanFunSph] = ...
-        geoboxcap(Lsle, oceanDomain, "BeQuiet", beQuiet + (beQuiet == 1));
+    [~, ~, ~, ~, ~, oceanFunPlm] = ...
+        geoboxcap(Lsle, oceanDomain, "BeQuiet", beQuiet);
     kernelOrder = kernelorder(Lsle);
 
+    %% Solving the degree-1 coefficients
     % Decently fast, no need to use parfor
+    % Using partfor may run into issues with RAM
     for iDate = 1:length(dates)
-        coeffs(iDate, :) = ...
-            solvedegree1Iter(squeeze(gracePlmt(iDate, :, 3:4)), oceanDomain, ...
-            Lsle, coeffsKernel, coeffsId, ...
-            oceanKernelSle, landKernelSle, oceanFunSph, kernelOrder, ...
-            method, beQuiet);
+        waitbar(iDate / length(dates), wbar, ...
+            sprintf('Solving degree-1 coefficients (%d/%d)', iDate, length(dates)));
 
-        if beQuiet <= 1 && mod(iDate, 10) == 0
-            fprintf('%s processed %s (%3d/%3d)\n', ...
-                upper(mfilename), dates(iDate), ...
-                iDate, length(dates));
+        if getappdata(wbar, 'canceling')
+            delete(wbar);
+            warning(sprintf('%s:ProcessCancelledByUser', upper(mfilename)), ...
+            'Processing cancelled');
+            fclose(logFid);
+            return
         end
 
+        coeffs(iDate, :) = ...
+            solvedegree1Iter(squeeze(gracePlmt(iDate, :, 3:4)), ...
+            oceanDomain, Lsle, coeffsKernel, coeffsId, ...
+            oceanKernelSle, landKernelSle, oceanFunPlm, kernelOrder, ...
+            method, beQuiet);
     end
+
+    %% Postprocessing and output
+    waitbar(1, wbar, 'Postprocessing results');
 
     % Restore GAC/GAD
     if rwGad
@@ -248,6 +252,8 @@ function coeffs = ...
         coeffs(:, 4) = coeffs(:, 4) + ...
             squeeze(giaPlmt(:, 4, 3));
     end
+
+    delete(wbar);
 
 end
 
@@ -392,4 +398,54 @@ function [outputPath, outputFile, deg1Id] = ...
     outputFile = sprintf('%s_%s.mat', productId, deg1Id);
 
     outputPath = fullfile(outputFolder, outputFile);
+end
+
+% Format the output
+function output = formatoutput(coeffs, dates, timelim, nOut, product, beQuiet)
+
+    if ~isempty(timelim)
+        isTimeRange = dates >= timelim(1) & dates <= timelim(2);
+        dates = dates(isTimeRange);
+        coeffs = coeffs(isTimeRange, :);
+    end
+
+    if nOut <= 2
+        output = {coeffs, dates};
+        return
+    end
+
+    [gracePlmt, ~, dates] = grace2plmt_new(product, ...
+        "Unit", 'SD', "TimeRange", timelim, "OutputFormat", 'timefirst', "TimeFormat", 'datetime', ...
+        "BeQuiet", beQuiet);
+
+    gracePlmt(:, 2, 3) = coeffs(:, 1);
+    gracePlmt(:, 3, 3) = coeffs(:, 2);
+    gracePlmt(:, 3, 4) = coeffs(:, 3);
+
+    if size(coeffs, 2) == 4
+        gracePlmt(:, 4, 3) = coeffs(:, 4);
+    end
+
+    output = {coeffs, dates, gracePlmt};
+
+end
+
+% Make sure the plm has the right degree
+function plm = ensureplmdegree(plm, L)
+
+    if size(plm, 2) == addmup(L)
+        return
+    end
+
+    if size(plm, 2) > addmup(L)
+        plm = plm(:, 1:addmup(L), :);
+        return
+    end
+
+    [order, degree] = addmon(L);
+    plm(:, 1:addmup(L), 1) = ...
+        repmat(reshape(degree, [1, length(degree)]), [size(plm, 1), 1]);
+    plm(:, 1:addmup(L), 2) = ...
+        repmat(reshape(order, [1, length(degree)]), [size(plm, 1), 1]);
+
 end

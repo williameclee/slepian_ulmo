@@ -116,7 +116,7 @@
 %   printed to the log file instead.
 %
 % Last modified by
-%   2025/05/23, williameclee@arizona.edu (@williameclee)
+%   2025/05/24, williameclee@arizona.edu (@williameclee)
 %   2022/05/18, charig@email.arizona.edu (@harig00)
 %   2020/11/09, lashokkumar@arizona.edu
 %   2019/03/18, mlubeck@email.arizona.edu
@@ -455,8 +455,7 @@ function [gracePlmt, dates] = ...
 
     if ~isempty(timelim)
         % Only keep the data within the specified time range
-        isValidTime = datetime(dates, "ConvertFrom", 'datenum') >= timelim(1) & ...
-            datetime(dates, "ConvertFrom", 'datenum') <= timelim(2);
+        isValidTime = dates >= timelim(1) & dates <= timelim(2);
         gracePlmt = gracePlmt(isValidTime, :, :);
         dates = dates(isValidTime);
     end
