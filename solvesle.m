@@ -1,35 +1,29 @@
 %% SOLVESLE
-% Solves the sea level equation (SLE) for a given forcing and ocean domain.
-% Note this function only solves the elastic component of the modern load, and the viscous response is from a GIA model (if specified).
+% Solves the (elastic) sea level equation (SLE) for a given forcing and ocean domain.
 % The ocean function is assumed constant.
 %
 % Syntax
-%   rslPlm = solvesle(forcingSph)
+%   rslPlm = solvesle(forcing)
 %   rslPlm = solvesle(forcingSph, L)
 %   rslPlm = solvesle(__, "Name", Value)
 %   [rslPlm, rslHatPlm, barystatic] = solvesle(__)
 %
 % Input arguments
-%   forcingSph - Forcing spherical harmonic coefficients
+%   forcing - Forcing spherical harmonic coefficients
 %       The first two columns (degree and order) can be omitted, assuming the data is in the form lmcosi.
-%   L - Bandwidth of the window
-%       The default degree is 96
-%   "Ocean" - Ocean domain
+%   L - Bandwidth of the data
+%       The default degree is the degree of forcing.
+%   Ocean - Ocean domain
 %       A geographic domain (GeoDomain object).
-%       The default domain is all oceans with a buffer of 1 degree.
-%   "Frame" - Reference frame
+%       The default domain is all oceans with a buffer of 0.5°.
+%   Frame - Reference frame
 %       Centre of mass (CM) frame or centre of figure (CF) frame.
 %       The default frame is the CF frame, which is the frame used in slepian_delta
-%   "RotationFeedback" - Whether to include rotation feedback
+%   RotationFeedback - Whether to include rotation feedback
 %       The default value is true
-%   "GiaGeoidSph" & "GiaVlmSph" - GIA geoid and bedrock deformation spherical harmonic coefficients
-%       If not specified, the GIA feedback is not included (which should be able to be added back later on without problem).
-%   "StericSph" - Steric sea level spherical harmonic coefficients
-%       If not specified, the steric component is not considered when converting between the load and the relative sea level.
-%       Unit: mm
-%   "MaxIter" - Maximum number of iterations
+%   MaxIter - Maximum number of iterations
 %       The default value is 10
-%   "OceanKernel" - Precomputed ocean kernel
+%   OceanKernel - Precomputed ocean kernel
 %
 % Output arguments
 %   rslLoadPlm - Mass load spherical harmonic coefficients
@@ -43,74 +37,11 @@
 %   2024/11/20, williameclee@arizona.edu (@williameclee)
 %
 % Last modified by
-%   2025/03/28, williameclee@arizona.edu (@williameclee)
+%   2025/05/26, williameclee@arizona.edu (@williameclee)
 
-function [rslLoadSph, rslLoadLclSph, barystaticSL] = solvesle(forcingSph, varargin)
+function [rslLoadSph, rslLoadLclSph, barystaticSL] = solvesle(varargin)
     %% Initialisation
-    ip = inputParser;
-    addRequired(ip, 'ForcingSph', ...
-        @(x) isnumeric(x) && ismatrix(x) && (size(x, 2) == 4 || size(x, 2) == 2));
-    addOptional(ip, 'L', [], ...
-        @(x) (isnumeric(x) && isscalar(x) && x > 0) || isempty(x));
-    addOptional(ip, 'Ocean', GeoDomain('alloceans', "Buffer", 0.5), ...
-        @(x) isa(x, 'GeoDomain') || (isnumeric(x) && ismatrix(x) && size(x, 2) == 2));
-    addOptional(ip, 'frame', 'CF', ...
-        @(x) ischar(validatestring(upper(x), {'CM', 'CF'})));
-    addOptional(ip, 'RotationFeedback', true, ...
-        @(x) islogical(x) || isnumeric(x));
-    addOptional(ip, 'maxIter', 10, ...
-        @(x) isnumeric(x) && isscalar(x) && x > 0);
-    addOptional(ip, 'GiaGeoidSph', [], ...
-        @(x) (isnumeric(x) && ismatrix(x) && (size(x, 2) == 4 || size(x, 2) == 2)) || isempty(x));
-    addOptional(ip, 'GiaVlmSph', [], ...
-        @(x) (isnumeric(x) && ismatrix(x) && (size(x, 2) == 4 || size(x, 2) == 2)) || isempty(x));
-    % addOptional(ip, 'StericSph', [], ...
-    %     @(x) (isnumeric(x) && ismatrix(x) && (size(x, 2) == 4 || size(x, 2) == 2)) || isempty(x));
-    addOptional(ip, 'OtherForcingSph', [], ...
-        @(x) (isnumeric(x) && ismatrix(x) && (size(x, 2) == 4 || size(x, 2) == 2)) || isempty(x));
-    addParameter(ip, 'BeQuiet', false, @(x) islogical(x) || isnumeric(x));
-    addParameter(ip, 'OceanKernel', [], @(x) isnumeric(x));
-    addParameter(ip, 'OceanFunction', [], @(x) isnumeric(x));
-    addParameter(ip, 'KernelOrder', [], @(x) isnumeric(x));
-    parse(ip, forcingSph, varargin{:});
-    forcingSph = squeeze(ip.Results.ForcingSph);
-    % giaGeoidSph = squeeze(ip.Results.GiaGeoidSph);
-    % giaVlmSph = squeeze(ip.Results.GiaVlmSph);
-    % stericSph = squeeze(ip.Results.StericSph);
-    otherForcingSph = squeeze(ip.Results.OtherForcingSph);
-    L = ip.Results.L;
-    ocean = ip.Results.Ocean;
-    frame = upper(ip.Results.frame);
-    doRotationFeedback = ip.Results.RotationFeedback;
-    maxIter = ip.Results.maxIter;
-    beQuiet = ip.Results.BeQuiet;
-    oceanKernel = ip.Results.OceanKernel;
-    oceanFunSph = ip.Results.OceanFunction;
-    kernelOrder = ip.Results.KernelOrder;
-
-    % if ~isempty(giaGeoidSph) && ~isempty(giaVlmSph)
-    %     doGia = true;
-
-    %     % Check if the forcing and GIA have the same size
-    %     if ~isequal(size(forcingSph), size(giaGeoidSph))
-    %         error('Forcing and GIA geoid deformation must have the same size')
-    %     end
-
-    %     if ~isequal(size(forcingSph), size(giaVlmSph))
-    %         error('Forcing and GIA VLM must have the same size')
-    %     end
-
-    % else
-    %     doGia = false;
-    % end
-
-    % if ~isempty(stericSph) && ...
-    %         ~all(stericSph(:, end - 1:end) == 0, "all")
-    %     doSteric = true;
-    %     stericLclSph = localise(stericSph, ocean, L);
-    % else
-    %     doSteric = false;
-    % end
+    [forcingSph, otherForcingSph, L, ocean, frame, doRotationFeedback, maxIter, beQuiet, oceanKernel, oceanFunSph, kernelOrder] = parseinputs(varargin{:});
 
     if ~isempty(otherForcingSph) && ...
             ~all(otherForcingSph(:, end - 1:end) == 0, "all")
@@ -129,32 +60,15 @@ function [rslLoadSph, rslLoadLclSph, barystaticSL] = solvesle(forcingSph, vararg
         end
 
         forcingSph = forcingSph(:, 3:4);
-
-        % if doGia
-        %     giaGeoidSph = giaGeoidSph(:, 3:4);
-        %     giaVlmSph = giaVlmSph(:, 3:4);
-        % end
-
-        % if doSteric
-        %     stericLclSph = stericLclSph(:, 3:4);
-        % end
-
     elseif isempty(L)
         L = finddegree(forcingSph);
     end
 
-    % if doSteric
-    %     stericLclSph = stericLclSph / 1000; % mm -> m
-    % end
-
     % Truncate the input to the correct degree
     if size(forcingSph, 1) < addmup(L)
         forcingSph(addmup(L), 2) = 0;
-        %     giaGeoidSph(addmup(L), 2) = 0;
-        %     giaVlmSph(addmup(L), 2) = 0;
     elseif size(forcingSph, 1) > addmup(L)
         forcingSph = forcingSph(1:addmup(L), :);
-        % giaGeoidSph = giaGeoidSph(1:addmup(L), :);
     end
 
     if isempty(oceanFunSph)
@@ -189,8 +103,8 @@ function [rslLoadSph, rslLoadLclSph, barystaticSL] = solvesle(forcingSph, vararg
 
     %% Constants
     % Many values from Adhikari et al. (2016; doi:10.5194/gmd-9-1087-2016)
-    WATER_DENSITY = 1028;
-    EARTH_DENSITY = 5515;
+    WATER_DENSITY = 1000; % to be consistent with other functions, mainly MASS2WEQ
+    EARTH_DENSITY = 5517; % to be consistent with PLM2POT
     EARTH_RADIUS = 6371e3;
     EARTH_ANGULAR_VELOCITY = 7.2921e-5;
     EQUATORIAL_INERTIA = 8.0077e37;
@@ -217,12 +131,7 @@ function [rslLoadSph, rslLoadLclSph, barystaticSL] = solvesle(forcingSph, vararg
     end
 
     for iIter = 1:maxIter
-
-        % if doSteric
-        %     loadSph = forcingSph + (rslLclSph - stericLclSph) * WATER_DENSITY;
-        % else
         loadSph = forcingSph + rslLclSph * WATER_DENSITY;
-        % end
 
         rslGravitySph = 3 / EARTH_DENSITY * llnFactor ./ (2 * degree + 1) .* loadSph;
 
@@ -242,25 +151,10 @@ function [rslLoadSph, rslLoadLclSph, barystaticSL] = solvesle(forcingSph, vararg
             rslSph = rslGravitySph;
         end
 
-        % if doGia
-        %     rslSph = rslSph + (giaGeoidSph - giaVlmSph);
-        % end
-
         if doOtherForcing
             rslSph = rslSph + otherForcingSph / WATER_DENSITY;
         end
 
-        % % if doSteric
-        % %     heightDiff = -(forcingSph(1, 1) / oceanFunSph(1, 1)) / WATER_DENSITY ...
-        % %         -sum((rslSph - stericLclSph) .* oceanFunSph / oceanFunSph(1, 1), 'all');
-        % % else
-        % % end
-
-        % heightDiff =- forcingSph(1, 1) / WATER_DENSITY / oceanFunSph(1, 1) ...
-        %     -sum(rslSph .* oceanFunSph, 'all') / oceanFunSph(1, 1);
-        % rslSph(1, 1) = rslSph(1, 1) + heightDiff;
-        % rslLclSph = localise(rslSph, ocean, L, ...
-        %     "K", oceanKernel, "KernelOrder", kernelOrder);
         rslLclSph(1, 1) = -forcingSph(1, 1) / WATER_DENSITY;
         rslSph(1, 1) = rslLclSph(1, 1) / oceanFunSph(1, 1);
 
@@ -282,13 +176,8 @@ function [rslLoadSph, rslLoadLclSph, barystaticSL] = solvesle(forcingSph, vararg
         rslLclSph = localise(rslSph, ocean, L, "K", oceanKernel, "KernelOrder", kernelOrder);
     end
 
-    % if doSteric
-    %     rslLoadSph = (rslSph - stericLclSph) * WATER_DENSITY;
-    %     rslLoadLclSph = (rslLclSph - stericLclSph) * WATER_DENSITY;
-    % else
     rslLoadSph = rslSph * WATER_DENSITY;
     rslLoadLclSph = rslLclSph * WATER_DENSITY;
-    % end
 
     barystaticSL = rslLclSph(1, 1) / oceanFunSph(1, 1) * 1000; % m -> mm
 
@@ -305,6 +194,45 @@ function [rslLoadSph, rslLoadLclSph, barystaticSL] = solvesle(forcingSph, vararg
 
 end
 
+%% Subfunctions
+% Parse input arguments
+function varargout = parseinputs(varargin)
+    ip = inputParser;
+    addRequired(ip, 'ForcingSph', ...
+        @(x) isnumeric(x) && ismatrix(x) && (size(x, 2) == 4 || size(x, 2) == 2));
+    addOptional(ip, 'L', [], ...
+        @(x) (isnumeric(x) && isscalar(x) && x > 0) || isempty(x));
+    addOptional(ip, 'Ocean', GeoDomain('alloceans', "Buffer", 0.5), ...
+        @(x) isa(x, 'GeoDomain') || (isnumeric(x) && ismatrix(x) && size(x, 2) == 2));
+    addOptional(ip, 'frame', 'CF', ...
+        @(x) ischar(validatestring(upper(x), {'CM', 'CF'})));
+    addOptional(ip, 'RotationFeedback', true, ...
+        @(x) islogical(x) || isnumeric(x));
+    addOptional(ip, 'maxIter', 10, ...
+        @(x) isnumeric(x) && isscalar(x) && x > 0);
+    addOptional(ip, 'OtherForcingSph', [], ...
+        @(x) (isnumeric(x) && ismatrix(x) && (size(x, 2) == 4 || size(x, 2) == 2)) || isempty(x));
+    addParameter(ip, 'BeQuiet', false, @(x) islogical(x) || isnumeric(x));
+    addParameter(ip, 'OceanKernel', [], @(x) isnumeric(x));
+    addParameter(ip, 'OceanFunction', [], @(x) isnumeric(x));
+    addParameter(ip, 'KernelOrder', [], @(x) isnumeric(x));
+    parse(ip, varargin{:});
+    forcingSph = squeeze(ip.Results.ForcingSph);
+    otherForcingSph = squeeze(ip.Results.OtherForcingSph);
+    L = ip.Results.L;
+    ocean = ip.Results.Ocean;
+    frame = upper(ip.Results.frame);
+    doRotationFeedback = ip.Results.RotationFeedback;
+    maxIter = ip.Results.maxIter;
+    beQuiet = ip.Results.BeQuiet;
+    oceanKernel = ip.Results.OceanKernel;
+    oceanFunSph = ip.Results.OceanFunction;
+    kernelOrder = ip.Results.KernelOrder;
+
+    varargout = {forcingSph, otherForcingSph, L, ocean, frame, doRotationFeedback, maxIter, beQuiet, oceanKernel, oceanFunSph, kernelOrder};
+end
+
+% Find the degree of the spherical harmonic coefficients based on the number of terms
 function L = finddegree(Plm)
     terms = size(Plm, 1);
     syms x y

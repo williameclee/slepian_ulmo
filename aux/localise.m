@@ -31,21 +31,26 @@
 %
 % Authored by
 %   2024/11/20, williameclee@arizona.edu (@williameclee)
+%
+% Last modified by
+%   2025/05/26, williameclee@arizona.edu (@williameclee)
 
 function [Plm, K] = localise(Plm, domain, L, varargin)
     ip = inputParser;
     addRequired(ip, 'Plm', ...
         @(x) isnumeric(x) && (size(x, 2) == 4 || size(x, 2) == 2));
     addRequired(ip, 'domain', @(x) isa(x, 'GeoDomain'));
-    addRequired(ip, 'L', @(x) isnumeric(x) && isscalar(x) && x > 0);
+    addOptional(ip, 'L', [], @(x) isnumeric(x) && isscalar(x) && x > 0);
     addParameter(ip, 'Inverse', false, @(x) islogical(x) || isnumeric(x));
     addParameter(ip, 'K', [], @ismatrix);
+    addParameter(ip, 'KernelOrder', [], @isvector);
     parse(ip, Plm, domain, L, varargin{:});
     Plm = ip.Results.Plm;
     domain = ip.Results.domain;
     L = ip.Results.L;
     isInverted = ip.Results.Inverse;
     K = ip.Results.K;
+    j2 = ip.Results.KernelOrder;
 
     is3d = ndims(Plm) == 3;
 
@@ -56,11 +61,10 @@ function [Plm, K] = localise(Plm, domain, L, varargin)
     includesDO = size(Plm, 2) == 4;
 
     if includesDO
-    end
 
-    j2 = kernelorder(L);
-
-    if includesDO
+        if isempty(L)
+            L = max(Plm(:, 1));
+        end
 
         if is3d
             Plm = Plm(:, 3:4, :);
@@ -70,33 +74,40 @@ function [Plm, K] = localise(Plm, domain, L, varargin)
 
     end
 
-    if size(Plm, 1) < addmup(L)
+    if isempty(j2)
+        j2 = kernelorder(L);
+    end
+
+    nInput = size(Plm, 1);
+    nTarget = addmup(L);
+
+    if nInput < nTarget
 
         if is3d
-            Plm(addmup(L), 2, 1) = 0;
+            Plm(nTarget, 2, 1) = 0;
         else
-            Plm(addmup(L), 2) = 0;
+            Plm(nTarget, 2) = 0;
         end
 
-    elseif size(Plm, 1) > addmup(L)
+    elseif nInput > nTarget
 
         if is3d
-            Plm = Plm(1:addmup(L), :, :);
+            Plm = Plm(1:nTarget, :, :);
         else
-            Plm = Plm(1:addmup(L), :);
+            Plm = Plm(1:nTarget, :);
         end
 
     end
 
     if is3d
-        Plm = reshape(Plm, [size(Plm, 1) * size(Plm, 2), size(Plm, 3)]);
+        Plm = reshape(Plm, [nInput * size(Plm, 2), size(Plm, 3)]);
         Plms = Plm(j2, :);
     else
         Plms = Plm(j2);
     end
 
     if isempty(K)
-        K = kernelcp_new(L, domain, "BeQuiet", true);
+        K = kernelcp_new(L, domain);
 
         if isInverted
             K = eye(size(K)) - K;
@@ -107,11 +118,11 @@ function [Plm, K] = localise(Plm, domain, L, varargin)
     ofun = K * Plms;
 
     if is3d
-        Plm = zeros([addmup(L) * 2, nData]);
+        Plm = zeros([nTarget * 2, nData]);
         Plm(j2, :) = ofun;
-        Plm = reshape(Plm, [addmup(L), 2, nData]);
+        Plm = reshape(Plm, [nTarget, 2, nData]);
     else
-        Plm = zeros([addmup(L), 2]);
+        Plm = zeros([nTarget, 2]);
         Plm(j2) = ofun;
     end
 
