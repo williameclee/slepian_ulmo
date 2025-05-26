@@ -8,6 +8,9 @@
 %
 % Authored by
 %   2025/05/22, williameclee@arizona.edu (@williameclee)
+%
+% Last modified by
+%   2025/05/26, williameclee@arizona.edu (@williameclee)
 
 function output = convertgravity(varargin)
     %% Initialisation
@@ -134,7 +137,7 @@ function sd = pot2sd(pot, L, avgDensity, inputFmt, timeDim)
 
 end
 
-function pot = sd2pot(sd, L, avgDensity, inputFmt, timeDim)
+function pot = sd2pot(sd, degree, avgDensity, inputFmt, timeDim)
 
     switch inputFmt
         case 'lmcosi'
@@ -174,8 +177,9 @@ function pot = sd2pot(sd, L, avgDensity, inputFmt, timeDim)
 
         case 'cosi'
         case 'L'
-            lovenum = lovenums('Wahr', L);
-            convFactor = 3 / avgDensity .* (1 + lovenum) ./ (2 * L + 1);
+            lovenum = lovenums('Wahr', degree);
+            lovenum = lovenum(:, 2);
+            convFactor = 3 / avgDensity .* (1 + lovenum) ./ (2 * degree + 1);
             pot = sd .* convFactor;
     end
 

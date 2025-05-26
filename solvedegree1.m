@@ -55,6 +55,12 @@
 %           domain.
 %       The default method is 'fingerprint'.
 %       Data type: char
+%   Unit - Unit of the output
+%       - 'GRAV': Surface gravity (this is POT in SLEPIAN_ALPHA).
+%       - 'POT': Geopotential field (surface gravity * equatorial radius).
+%       - 'SD': Surface mass density.
+%       The default field is 'SD'.
+%       Data type: char
 %   ForceNew - Logical flag to force reprocess of the data
 %       The default option is false.
 %       Data type: logical | ([numeric])
@@ -92,13 +98,13 @@
 %   2025/03/18, williameclee@arizona.edu (@williameclee)
 %
 % Last modified by
-%   2025/05/24, williameclee@arizona.edu (@williameclee)
+%   2025/05/26, williameclee@arizona.edu (@williameclee)
 
 function varargout = solvedegree1(varargin)
     %% Initialisation
     % Parse inputs
     [pcenter, rlevel, Ldata, Ltruncation, Lsle, giaModel, oceanDomain, ...
-         includeC20, replaceWGad, method, timelim, ...
+         includeC20, replaceWGad, method, timelim, unit, ...
          forceNew, saveData, beQuiet, onlyId] = ...
         parseinputs(varargin);
 
@@ -120,7 +126,7 @@ function varargout = solvedegree1(varargin)
                 fprintf('%s loaded %s\n', upper(mfilename), dataPath)
             end
 
-            varargout = formatoutput(coeffs, dates, timelim, nargout, ...
+            varargout = formatoutput(coeffs, dates, timelim, unit, nargout, ...
                 {pcenter, rlevel, Ldata}, beQuiet);
 
             return
@@ -140,7 +146,7 @@ function varargout = solvedegree1(varargin)
 
     end
 
-    varargout = formatoutput(coeffs, dates, timelim, nargout, ...
+    varargout = formatoutput(coeffs, dates, timelim, unit, nargout, ...
         {pcenter, rlevel, Ldata}, beQuiet);
 
 end
@@ -177,13 +183,12 @@ function [coeffs, dates] = ...
     gracePlmt(:, 3:end, 3:4) = gracePlmt(:, 3:end, 3:4) - giaPlmt(:, 3:end, 3:4);
 
     %% Preparing/preallocating variables
-    waitbar(0, wbar, 'Preparing variables');
+    waitbar(0, wbar, 'Preparing kernels and variables');
 
     if getappdata(wbar, 'canceling')
         delete(wbar);
         warning(sprintf('%s:ProcessCancelledByUser', upper(mfilename)), ...
         'Processing cancelled');
-        fclose(logFid);
         return
     end
 
@@ -212,14 +217,6 @@ function [coeffs, dates] = ...
     for iDate = 1:length(dates)
         waitbar(iDate / length(dates), wbar, ...
             sprintf('Solving degree-1 coefficients (%d/%d)', iDate, length(dates)));
-
-        if getappdata(wbar, 'canceling')
-            delete(wbar);
-            warning(sprintf('%s:ProcessCancelledByUser', upper(mfilename)), ...
-            'Processing cancelled');
-            fclose(logFid);
-            return
-        end
 
         coeffs(iDate, :) = ...
             solvedegree1Iter(squeeze(gracePlmt(iDate, :, 3:4)), ...
@@ -257,6 +254,7 @@ function [coeffs, dates] = ...
 
 end
 
+% Iteratively through each month to solve the degree-1 coefficients
 function [coeffs, graceSph] = ...
         solvedegree1Iter(graceSph, oceanDomain, Lsle, coeffsKernel, coeffsId, ...
         oceanKernelSle, landKernelSle, oceanFunSph, kernelOrder, method, beQuiet)
@@ -328,6 +326,8 @@ function varargout = parseinputs(inputs)
         @(x) ischar(validatestring(x, {'fingerprint', 'uniform'})));
     addOptional(ip, 'TimeRange', [], ...
         @(x) isempty(x) || isdatetime(x) || isnumeric(x));
+    addOptional(ip, 'Unit', 'SD', ...
+        @(x) ischar(validatestring(x, {'GRAV', 'POT', 'SD'})));
     addParameter(ip, 'ForceNew', false, ...
         @(x) (isnumeric(x) || islogical(x)) && isscalar(x));
     addParameter(ip, 'SaveData', true, ...
@@ -349,6 +349,7 @@ function varargout = parseinputs(inputs)
     replaceWGad = logical(ip.Results.ReplaceWithGAD);
     method = ip.Results.Method;
     timelim = ip.Results.TimeRange;
+    unit = ip.Results.Unit;
     forceNew = logical(ip.Results.ForceNew);
     saveData = logical(ip.Results.SaveData);
     beQuiet = double(ip.Results.BeQuiet) * 2;
@@ -356,7 +357,7 @@ function varargout = parseinputs(inputs)
 
     varargout = ...
         {pcenter, rlevel, Ldata, Ltruncation, Lsle, giaModel, oceanDomain, ...
-         includeC20, replaceWGad, method, timelim, ...
+         includeC20, replaceWGad, method, timelim, unit, ...
          forceNew, saveData, beQuiet, onlyId};
 end
 
@@ -391,7 +392,7 @@ function [outputPath, outputFile, deg1Id] = ...
     end
 
     productId = sprintf('%s%s%d', pcenter, rlevel, Ldata);
-    deg1Id = sprintf('%s-%s%s-Ld%d_Ls%d-%s%s', ...
+    deg1Id = sprintf('%s-%s%s-Ld%d_Ls%d-%s%s-SD', ...
         gadFlag, giaModel, includeC20Flag, ...
         Ltruncation, Lsle, oceanDomain.Id, methodFlag);
 
@@ -401,7 +402,14 @@ function [outputPath, outputFile, deg1Id] = ...
 end
 
 % Format the output
-function output = formatoutput(coeffs, dates, timelim, nOut, product, beQuiet)
+function output = formatoutput(coeffs, dates, timelim, unit, nOut, product, beQuiet)
+    coeffs(:, 1:3) = convertgravity(coeffs(:, 1:3), 'SD', unit, ...
+        "InputFormat", 'L', "L", 1);
+
+    if size(coeffs, 2) == 4
+        coeffs(:, 4) = convertgravity(coeffs(:, 4), 'SD', unit, ...
+            "InputFormat", 'L', "L", 2);
+    end
 
     if ~isempty(timelim)
         isTimeRange = dates >= timelim(1) & dates <= timelim(2);
@@ -415,7 +423,7 @@ function output = formatoutput(coeffs, dates, timelim, nOut, product, beQuiet)
     end
 
     [gracePlmt, ~, dates] = grace2plmt_new(product, ...
-        "Unit", 'SD', "TimeRange", timelim, "OutputFormat", 'timefirst', "TimeFormat", 'datetime', ...
+        "Unit", unit, "TimeRange", timelim, "OutputFormat", 'timefirst', "TimeFormat", 'datetime', ...
         "BeQuiet", beQuiet);
 
     gracePlmt(:, 2, 3) = coeffs(:, 1);

@@ -116,7 +116,7 @@
 %   printed to the log file instead.
 %
 % Last modified by
-%   2025/05/24, williameclee@arizona.edu (@williameclee)
+%   2025/05/26, williameclee@arizona.edu (@williameclee)
 %   2022/05/18, charig@email.arizona.edu (@harig00)
 %   2020/11/09, lashokkumar@arizona.edu
 %   2019/03/18, mlubeck@email.arizona.edu
@@ -493,12 +493,12 @@ function [inputFolder, outputPath, logPath] = ...
     end
 
     switch unit % no otherwise case since input validity is already checked
-        case 'SD'
-            outputFile = sprintf('%s_%s_alldata_%s_%s.mat', ...
-                Pcenter, Rlevel, num2str(Ldata), unit);
         case 'POT'
             outputFile = sprintf('%s_%s_alldata_%s.mat', ...
                 Pcenter, Rlevel, num2str(Ldata));
+        otherwise
+            outputFile = sprintf('%s_%s_alldata_%s_%s.mat', ...
+                Pcenter, Rlevel, num2str(Ldata), unit);
     end
 
     if ~c30corr
