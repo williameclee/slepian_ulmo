@@ -98,24 +98,33 @@ function varargout = aod1b2plmt(varargin)
         % Load the peocessed data
         load(outputPath, 'aod1bPlmt', 'aod1bStdPlmt', 'dates');
 
-        if beQuiet <= 1
-            fprintf('%s loaded %s\n', upper(mfilename), outputPath)
-        end
+        if exist('aod1bPlmt', 'var') && exist('aod1bStdPlmt', 'var') && exist('dates', 'var')
 
-    else
-        % Reload from the raw data
-        [aod1bPlmt, aod1bStdPlmt, dates, equatorRadius, gravityParam] = ...
-            aod1b2plmtCore(inputFolder, product, Rlevel, unit);
-
-        % Save
-        if saveData
-            save(outputPath, ...
-                'aod1bPlmt', 'aod1bStdPlmt', 'dates', 'equatorRadius', 'gravityParam');
-
-            if ~beQuiet
-                fprintf('%s saved %s\n', upper(mfilename), outputPath)
+            if beQuiet <= 1
+                fprintf('%s loaded %s\n', upper(mfilename), outputPath)
             end
 
+            % Collect output
+            [aod1bPlmt, aod1bStdPlmt, dates] = ...
+                formatoutput(aod1bPlmt, aod1bStdPlmt, dates, Loutput, timelim, outputFmt, timeFmt);
+
+            varargout = {aod1bPlmt, aod1bStdPlmt, dates};
+            return
+        end
+
+    end
+
+    % Reload from the raw data
+    [aod1bPlmt, aod1bStdPlmt, dates, equatorRadius, gravityParam] = ...
+        aod1b2plmtCore(inputFolder, product, Rlevel, unit);
+
+    % Save
+    if saveData
+        save(outputPath, ...
+            'aod1bPlmt', 'aod1bStdPlmt', 'dates', 'equatorRadius', 'gravityParam');
+
+        if ~beQuiet
+            fprintf('%s saved %s\n', upper(mfilename), outputPath)
         end
 
     end
