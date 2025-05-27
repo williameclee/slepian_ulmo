@@ -1,5 +1,6 @@
 %% SOLVESLE
-% Solves the (elastic) sea level equation (SLE) for a given forcing and ocean domain.
+% Solves the (elastic) sea level equation (SLE) for a given forcing and
+% ocean domain.
 % The ocean function is assumed constant.
 %
 % Syntax
@@ -35,16 +36,22 @@
 %   barystatic - Static ocean mass change
 %       Unit: mm
 %
+% Notes
+%   In the implementation, all SH coefficient variables with a 's' suffix
+%   means they are flattened to a column vector.
+%
 % Authored by
 %   2024/11/20, williameclee@arizona.edu (@williameclee)
 %
 % Last modified by
-%   2025/05/26, williameclee@arizona.edu (@williameclee)
+%   2025/05/27, williameclee@arizona.edu (@williameclee)
 
-function [rslLoadSph, rslLoadLclSph, barystaticSL] = solvesle(varargin)
+function [rslLoadPlm, rslOceanLoadPlm, barystaticSL] = solvesle(varargin)
     %% Initialisation
     % Parse input arguments
-    [forcingLoadPlm, forcingLoadStdPlm, includesDO, computeError, L, ocean, frame, doRotationFeedback, maxIter, beQuiet, oceanKernel, oceanFunPlm, kernelOrder] = parseinputs(varargin{:});
+    [forcingLoadPlm, forcingLoadStdPlm, includesDO, computeError, ...
+         L, ocean, frame, doRotationFeedback, maxIter, beQuiet, ...
+         oceanKernel, oceanFunPlm, kernelOrder] = parseinputs(varargin{:});
 
     % Truncate the input to the correct degree
     if size(forcingLoadPlm, 1) < addmup(L)
@@ -89,6 +96,12 @@ function [rslLoadSph, rslLoadLclSph, barystaticSL] = solvesle(varargin)
         kernelOrder = kernelorder(L);
     end
 
+    kernelOrder = kernelOrder(:);
+
+    forcingLoadPlms = forcingLoadPlm(kernelOrder);
+    forcingLoadStdPlms = forcingLoadStdPlm(kernelOrder);
+    oceanFunPlms = oceanFunPlm(kernelOrder);
+
     %% Constants
     % Many values from Adhikari et al. (2016; doi:10.5194/gmd-9-1087-2016)
     WATER_DENSITY = 1000; % to be consistent with other functions, mainly MASS2WEQ
@@ -101,45 +114,49 @@ function [rslLoadSph, rslLoadLclSph, barystaticSL] = solvesle(varargin)
     GRAVITY = 9.81;
 
     [~, degree] = addmon(L);
-    llnGeoid = lovenumber(degree, 'loadinggravitationalpotential', frame);
-    llnVlm = lovenumber(degree, 'loadingverticaldisplacement', frame);
-    llnFactor = 1 + llnGeoid - llnVlm;
-    tlnGeoid = lovenumber(degree, 'tidalgravitationalpotential', frame);
-    tlnVlm = lovenumber(degree, 'tidalverticaldisplacement', frame);
-    tlnFactor = 1 + tlnGeoid - tlnVlm;
+    degrees = [degree, degree];
+    degrees = degrees(kernelOrder);
+    llnGeoids = lovenumber(degrees, 'loadinggravitationalpotential', frame);
+    llnVlms = lovenumber(degrees, 'loadingverticaldisplacement', frame);
+    llnFactors = 1 + llnGeoids - llnVlms;
+    tlnGeoids = lovenumber(degrees, 'tidalgravitationalpotential', frame);
+    tlnVlms = lovenumber(degrees, 'tidalverticaldisplacement', frame);
+    tlnFactors = 1 + tlnGeoids - tlnVlms;
+    llnGeoid2 = lovenumber(2, 'loadinggravitationalpotential', frame);
 
     %% Iteration
-    barystaticSL =- forcingLoadPlm(1, 1) / oceanFunPlm(1, 1) / WATER_DENSITY;
-
-    rslPlm = oceanFunPlm * barystaticSL;
-    rslOceanPlm = rslPlm;
+    barystaticSL =- forcingLoadPlms(1, :) / oceanFunPlms(1, :) / WATER_DENSITY;
+    rslPlms = oceanFunPlms * barystaticSL;
+    rslOceanPlms = rslPlms;
 
     for iIter = 1:maxIter
-        loadPlm = forcingLoadPlm + rslOceanPlm * WATER_DENSITY;
+        loadPlms = forcingLoadPlms + rslOceanPlms * WATER_DENSITY;
 
-        rslGravityPlm = 3 / EARTH_DENSITY * llnFactor ./ (2 * degree + 1) .* loadPlm;
+        rslGravityPlms = 3 / EARTH_DENSITY * llnFactors ./ (2 * degrees + 1) .* loadPlms;
 
         if doRotationFeedback
-            rotPotPlm = zeros([addmup(L), 2]);
+            rotPotPlms = zeros(size(rslGravityPlms));
             % C00
-            rotPotPlm(1, 1) = 2/3 * EARTH_RADIUS ^ 2 * EARTH_ANGULAR_VELOCITY ^ 2 ...
-                * (- (1 + llnGeoid(2)) / POLAR_INERTIA) * 8 * pi / 3 * EARTH_RADIUS ^ 4 * (loadPlm(1, 1) - loadPlm(4, 1) / sqrt(5));
-            rotPotPlm(4, 1) = -rotPotPlm(1, 1) / sqrt(5);
+            rotPotPlms(1, :) = 2/3 * EARTH_RADIUS ^ 2 * EARTH_ANGULAR_VELOCITY ^ 2 ...
+                * (- (1 + llnGeoid2) / POLAR_INERTIA) * 8 * pi / 3 * EARTH_RADIUS ^ 4 ...
+                * (loadPlms(1, :) - loadPlms(5, :) / sqrt(5));
             % C20
-            rotPotPlm(5, :) = -1 / sqrt(15) * EARTH_RADIUS ^ 2 * EARTH_ANGULAR_VELOCITY ^ 2 ...
-                * EARTH_ANGULAR_VELOCITY * (1 + llnGeoid(2)) / (EQUATORIAL_INERTIA * CHANDLER_WOBBLE_FREQUENCY) ...
-                * (-4 * pi / sqrt(15)) * EARTH_RADIUS ^ 4 * loadPlm(5, :);
-            rslRotSph = tlnFactor / GRAVITY .* rotPotPlm;
-            rslPlm = rslGravityPlm + rslRotSph;
+            rotPotPlms(5, :) = -rotPotPlms(1, :) / sqrt(5);
+            % C21/S21
+            rotPotPlms(6:7, :) = -1 / sqrt(15) * EARTH_RADIUS ^ 2 * EARTH_ANGULAR_VELOCITY ^ 2 ...
+                * EARTH_ANGULAR_VELOCITY * (1 + llnGeoid2) / (EQUATORIAL_INERTIA * CHANDLER_WOBBLE_FREQUENCY) ...
+                * (-4 * pi / sqrt(15)) * EARTH_RADIUS ^ 4 * loadPlms(6:7, :);
+            rslRotPlms = tlnFactors / GRAVITY .* rotPotPlms;
+            rslPlms = rslGravityPlms + rslRotPlms;
         else
-            rslPlm = rslGravityPlm;
+            rslPlms = rslGravityPlms;
         end
 
-        rslOceanPlm = localise(rslPlm, ocean, L, "K", oceanKernel, "KernelOrder", kernelOrder);
+        rslOceanPlms = oceanKernel * rslPlms;
 
         % Enforce mass conservation
-        rslOceanPlm(1, 1) = -forcingLoadPlm(1, 1) / WATER_DENSITY;
-        rslPlm(1, 1) = rslOceanPlm(1, 1) / oceanFunPlm(1, 1);
+        rslOceanPlms(1, :) = -forcingLoadPlms(1, :) / WATER_DENSITY;
+        rslPlms(1, :) = rslOceanPlms(1, :) / oceanFunPlms(1, :);
 
         % Counter
         if ~beQuiet
@@ -154,15 +171,20 @@ function [rslLoadSph, rslLoadLclSph, barystaticSL] = solvesle(varargin)
     end
 
     %% Post-processing
-    rslLoadSph = rslPlm * WATER_DENSITY;
-    rslLoadLclSph = rslOceanPlm * WATER_DENSITY;
+    rslLoadPlms = rslPlms * WATER_DENSITY;
+    rslOceanLoadPlms = rslOceanPlms * WATER_DENSITY;
 
-    barystaticSL = rslOceanPlm(1, 1) / oceanFunPlm(1, 1) * 1000; % m -> mm
+    barystaticSL = rslOceanPlms(1, :) ./ oceanFunPlms(1, :) * 1e3; % m -> mm
+
+    rslLoadPlm = zeros([addmup(L), 2]);
+    rslOceanLoadPlm = zeros([addmup(L), 2]);
+    rslLoadPlm(kernelOrder) = rslLoadPlms;
+    rslOceanLoadPlm(kernelOrder) = rslOceanLoadPlms;
 
     if includesDO
         [order, degree] = addmon(L);
-        rslLoadSph = [degree, order, rslLoadSph];
-        rslLoadLclSph = [degree, order, rslLoadLclSph];
+        rslLoadPlm = [degree, order, rslLoadPlm];
+        rslOceanLoadPlm = [degree, order, rslOceanLoadPlm];
     end
 
     % Clean counter
