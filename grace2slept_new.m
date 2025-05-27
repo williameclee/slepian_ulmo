@@ -99,7 +99,7 @@
 %   GRACE2PLMT (GRACE2PLMT_NEW), PLM2SLEP
 %
 % Last modified by
-%   2025/05/23, williameclee@arizona.edu (@williameclee)
+%   2025/05/27, williameclee@arizona.edu (@williameclee)
 %   2024/08/30, williameclee@arizona.edu (@williameclee)
 %   2022/05/18, charig@princeton.edu (@harig00)
 %   2012/06/26, fjsimons@alum.mit.edu (@fjsimons)
@@ -178,26 +178,18 @@ function varargout = grace2slept_new(varargin)
         plmt(:, 1:addmup(maxL), 2) = order;
     end
 
-    % Initialise new coefficients
-    nDates = length(dates);
-    slept = nan([nDates, truncation]);
-    stdSlept = nan([nDates, truncation]);
-
     [G, CC, V, N, ronmW] = ...
         getslepianbasis(domain, L, phi, theta, omega, maxL, truncation, beQuiet);
 
-    % Loop over the months
-    for iDate = 1:nDates
-        plm = squeeze(plmt(iDate, :, :));
-        slept(iDate, :) = ...
-            plm(2 * size(plm, 1) + ...
-            ronmW(1:(maxL + 1) ^ 2))' * G;
-
-        stdPlm = squeeze(stdPlmt(iDate, :, :));
-        stdSlept(iDate, :) = ...
-            stdPlm(2 * size(stdPlm, 1) + ...
-            ronmW(1:(maxL + 1) ^ 2))' * G;
-    end
+    nDates = length(dates);
+    % GRACE
+    plmst = reshape(plmt(:, :, 3:4), [nDates, size(plmt, 2) * 2]);
+    plmst = plmst(:, ronmW(1:(maxL + 1) ^ 2)); % nDates x nCoeffs
+    slept = (G' * plmst')';
+    % GRACE STD
+    stdPlmst = reshape(stdPlmt(:, :, 3:4), [nDates, size(stdPlmt, 2) * 2]);
+    stdPlmst = stdPlmst(:, ronmW(1:(maxL + 1) ^ 2)); % nDates x nCoeffs
+    stdSlept = sqrt(((G .^ 2)' * (stdPlmst .^ 2)')');
 
     if saveData
         save(outputPath, 'slept', 'stdSlept', 'dates');
