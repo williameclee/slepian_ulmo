@@ -4,9 +4,9 @@
 % The ocean function is assumed constant.
 %
 % Syntax
-%   [rslLoad, [], gmsl, []] = solvesle(forcing, [], L, ocean)
-%   [rslLoad, rslLoadStd, gmsl, gmslStd] = solvesle(forcing, forcingStd, L, ocean)
-%   rslLoad = solvesle(__, "Name", Value)
+%   [rslLoad, [], gmsl, []] = SOLVESLE(forcing, [], L, ocean)
+%   [rslLoad, rslLoadStd, gmsl, gmslStd] = SOLVESLE(forcing, forcingStd, L, ocean)
+%   rslLoad = SOLVESLE(__, "Name", Value)
 %
 % Input arguments
 %   forcing - SH coefficients of the forcing
@@ -56,7 +56,7 @@
 %       output is empty.
 %       The data type and dimension should be the same as rslLoad.
 %   gmsl - Barystatic sea level from the forcing
-%       Since the ocean domain is the true global ocean, the GMSL is not 
+%       Since the ocean domain is the true global ocean, the GMSL is not
 %       comparible with values reported in latitude-bounded oceans.
 %       Unit: mm
 %       Dimension: scalar | [N x 1]
@@ -90,20 +90,19 @@ function varargout = solvesle(varargin)
     % Parse input arguments
     [forcingLoadPlm, forcingLoadStdPlm, includesDO, computeError, ...
          L, ocean, frame, doRotationFeedback, maxIter, ...
-         oceanKernel, oceanFunPlm, kernelOrder] = parseinputs(varargin{:});
+         oceanKernel, oceanFunPlm, kernelOrder, beQuiet] = parseinputs(varargin{:});
 
-    wbar = waitbar(0, 'Initialising', ...
-        "Name", upper(mfilename), "CreateCancelBtn", 'setappdata(gcbf,''canceling'',1)');
-
-    if getappdata(wbar, 'canceling')
-        delete(wbar);
-        warning(sprintf('%s:ProcessCancelledByUser', upper(mfilename)), ...
-        'Processing cancelled');
-        return
+    if ~beQuiet
+        wbar = waitbar(0, 'Initialising', ...
+            "Name", upper(mfilename), "CreateCancelBtn", 'setappdata(gcbf,''canceling'',1)');
     end
 
     if isempty(oceanFunPlm)
-        waitbar(0, wbar, 'Computing ocean function');
+
+        if ~beQuiet
+            waitbar(0, wbar, 'Computing ocean function');
+        end
+
         [~, ~, ~, ~, ~, oceanFunPlm] = geoboxcap(L, ocean, "BeQuiet", true);
     end
 
@@ -112,7 +111,11 @@ function varargout = solvesle(varargin)
     end
 
     if isempty(oceanKernel)
-        waitbar(0, wbar, 'Computing ocean kernel');
+
+        if ~beQuiet
+            waitbar(0, wbar, 'Computing ocean kernel');
+        end
+
         oceanKernel = kernelcp_new(L, ocean, "BeQuiet", true);
     end
 
@@ -156,7 +159,10 @@ function varargout = solvesle(varargin)
     oceanFunPlms = oceanFunPlm(kernelOrder);
 
     %% Constants
-    waitbar(0, wbar, 'Constructing SLE kernel');
+    if ~beQuiet
+        waitbar(0, wbar, 'Constructing SLE kernel');
+    end
+
     % Many values from Adhikari et al. (2016)
     WATER_DENSITY = 1000; % to be consistent with other functions, mainly MASS2WEQ
     EARTH_DENSITY = 5517; % to be consistent with PLM2POT
@@ -212,8 +218,19 @@ function varargout = solvesle(varargin)
     end
 
     for iIter = 1:maxIter
-        waitbar(iIter / maxIter, wbar, ...
-            sprintf('Solving SLE iteratively, (%d/%d)', iIter, maxIter));
+
+        if ~beQuiet
+            waitbar(iIter / maxIter, wbar, ...
+                sprintf('Solving SLE iteratively, (%d/%d)', iIter, maxIter));
+
+            if getappdata(wbar, 'canceling')
+                delete(wbar);
+                error(sprintf('%s:ProcessCancelledByUser', upper(mfilename)), ...
+                'Processing cancelled');
+                return
+            end
+
+        end
 
         loadPlms = forcingLoadPlms + rslOceanPlms * WATER_DENSITY;
 
@@ -237,7 +254,9 @@ function varargout = solvesle(varargin)
     end
 
     %% Post-processing
-    waitbar(1, wbar, 'Post-processing results');
+    if ~beQuiet
+        waitbar(1, wbar, 'Post-processing results');
+    end
 
     rslLoadPlms = rslPlms * WATER_DENSITY;
     gmsl = rslOceanPlms(1, :) ./ oceanFunPlms(1, :) * 1e3; % m -> mm
@@ -267,7 +286,11 @@ function varargout = solvesle(varargin)
 
     if ~computeError
         varargout = {rslLoadPlm, [], gmsl(:), []};
-        delete(wbar);
+
+        if ~beQuiet
+            delete(wbar);
+        end
+
         return
     end
 
@@ -296,7 +319,11 @@ function varargout = solvesle(varargin)
     end
 
     varargout = {rslLoadPlm, rslLoadStdPlm, gmsl(:), gmslStd(:)};
-    delete(wbar);
+
+    if ~beQuiet
+        delete(wbar);
+    end
+
 end
 
 %% Subfunctions
@@ -320,6 +347,7 @@ function varargout = parseinputs(varargin)
     addParameter(ip, 'OceanKernel', [], @(x) isnumeric(x));
     addParameter(ip, 'OceanFunction', [], @(x) isnumeric(x));
     addParameter(ip, 'KernelOrder', [], @(x) isnumeric(x));
+    addParameter(ip, 'BeQuiet', false, @(x) (isnumeric(x) || islogical(x)) && isscalar(x));
     parse(ip, varargin{:});
     forcingPlm = squeeze(ip.Results.ForcingPlm);
     forcingStdPlm = squeeze(ip.Results.ForcingStdPlm);
@@ -331,12 +359,14 @@ function varargout = parseinputs(varargin)
     oceanKernel = ip.Results.OceanKernel;
     oceanFunSph = ip.Results.OceanFunction;
     kernelOrder = ip.Results.KernelOrder;
+    beQuiet = logical(ip.Results.BeQuiet);
 
     % Check input sizes
     includesDO = size(forcingPlm, 2) == 4;
 
     if isempty(forcingStdPlm) || ...
             all(forcingStdPlm(:, end - 1:end) == 0, "all")
+        forcingStdPlm = zeros(size(forcingPlm));
         computeError = false;
     else
 
@@ -368,7 +398,7 @@ function varargout = parseinputs(varargin)
     varargout = ...
         {forcingPlm, forcingStdPlm, includesDO, computeError, ...
          L, ocean, frame, doRotationFeedback, maxIter, ...
-         oceanKernel, oceanFunSph, kernelOrder};
+         oceanKernel, oceanFunSph, kernelOrder, beQuiet};
 end
 
 % Find the degree of the spherical harmonic coefficients based on the

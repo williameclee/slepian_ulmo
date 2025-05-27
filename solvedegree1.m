@@ -98,7 +98,7 @@
 %   2025/03/18, williameclee@arizona.edu (@williameclee)
 %
 % Last modified by
-%   2025/05/26, williameclee@arizona.edu (@williameclee)
+%   2025/05/27, williameclee@arizona.edu (@williameclee)
 
 function varargout = solvedegree1(varargin)
     %% Initialisation
@@ -218,11 +218,18 @@ function [coeffs, dates] = ...
         waitbar(iDate / length(dates), wbar, ...
             sprintf('Solving degree-1 coefficients (%d/%d)', iDate, length(dates)));
 
+        if getappdata(wbar, 'canceling')
+            delete(wbar);
+            error(sprintf('%s:ProcessCancelledByUser', upper(mfilename)), ...
+            'Processing cancelled');
+            return
+        end
+
         coeffs(iDate, :) = ...
             solvedegree1Iter(squeeze(gracePlmt(iDate, :, 3:4)), ...
             oceanDomain, Lsle, coeffsKernel, coeffsId, ...
             oceanKernelSle, landKernelSle, oceanFunPlm, kernelOrder, ...
-            method, beQuiet);
+            method);
     end
 
     %% Postprocessing and output
@@ -257,7 +264,7 @@ end
 % Iteratively through each month to solve the degree-1 coefficients
 function [coeffs, graceSph] = ...
         solvedegree1Iter(graceSph, oceanDomain, Lsle, coeffsKernel, coeffsId, ...
-        oceanKernelSle, landKernelSle, oceanFunSph, kernelOrder, method, beQuiet)
+        oceanKernelSle, landKernelSle, oceanFunSph, kernelOrder, method)
     maxIter = 5;
 
     graceNoUnknownSph = graceSph;
@@ -271,11 +278,11 @@ function [coeffs, graceSph] = ...
 
         switch method
             case 'fingerprint'
-                [~, oceanSph] = ...
-                    solvesle(landSph, Lsle, "Ocean", oceanDomain, ...
+                oceanSph = ...
+                    solvesle(landSph, [], Lsle, oceanDomain, ...
                     "OceanKernel", oceanKernelSle, "OceanFunction", oceanFunSph, ...
                     "KernelOrder", kernelOrder, ...
-                    "RotationFeedback", true, "BeQuiet", beQuiet + (beQuiet == 1));
+                    "RotationFeedback", true, "BeQuiet", true);
                 oceanSph = oceanSph(1:addmup(Lsle), :); % Truncate to original L
                 oceanCoeffs = oceanSph(coeffsId);
             case 'uniform'
@@ -336,6 +343,11 @@ function varargout = parseinputs(inputs)
         @(x) (isnumeric(x) || islogical(x)) && isscalar(x));
     addParameter(ip, 'OnlyId', false, ...
         @(x) (isnumeric(x) || islogical(x)) && isscalar(x));
+
+    if iscell(inputs{1})
+        inputs = [inputs{1}{:}, inputs(2:end)];
+    end
+
     parse(ip, inputs{:});
 
     pcenter = ip.Results.Pcenter;
