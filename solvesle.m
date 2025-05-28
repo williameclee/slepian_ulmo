@@ -224,7 +224,7 @@ function varargout = solvesle(varargin)
                 sprintf('Solving SLE iteratively, (%d/%d)', iIter, maxIter));
 
             if getappdata(wbar, 'canceling')
-                close(wbar);
+                delete(wbar);
                 error(sprintf('%s:ProcessCancelledByUser', upper(mfilename)), ...
                 'Processing cancelled');
             end
@@ -244,7 +244,8 @@ function varargout = solvesle(varargin)
             continue
         end
 
-        loadStdPlms = forcingLoadStdPlms + rslOceanStdPlms * WATER_DENSITY;
+        loadStdPlms = sqrt( ...
+            forcingLoadStdPlms .^ 2 + (rslOceanStdPlms * WATER_DENSITY) .^ 2);
         rslStdPlms = sqrt((sleKernel .^ 2) * (loadStdPlms .^ 2));
         rslOceanStdPlms = sqrt((oceanKernel .^ 2) * (rslStdPlms .^ 2));
         rslOceanStdPlms(1, :) = -forcingLoadStdPlms(1, :) / WATER_DENSITY;
@@ -287,7 +288,7 @@ function varargout = solvesle(varargin)
         varargout = {rslLoadPlm, [], gmsl(:), []};
 
         if ~beQuiet
-            close(wbar);
+            delete(wbar);
         end
 
         return
