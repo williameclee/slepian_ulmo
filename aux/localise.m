@@ -33,18 +33,18 @@
 %   2024/11/20, williameclee@arizona.edu (@williameclee)
 %
 % Last modified by
-%   2025/05/26, williameclee@arizona.edu (@williameclee)
+%   2025/05/28, williameclee@arizona.edu (@williameclee)
 
-function [Plm, K] = localise(Plm, domain, L, varargin)
+function [Plm, K] = localise(Plm, varargin)
     ip = inputParser;
     addRequired(ip, 'Plm', ...
         @(x) isnumeric(x) && (size(x, 2) == 4 || size(x, 2) == 2));
-    addRequired(ip, 'domain', @(x) isa(x, 'GeoDomain'));
+    addOptional(ip, 'domain', @(x) isa(x, 'GeoDomain'));
     addOptional(ip, 'L', [], @(x) isnumeric(x) && isscalar(x) && x > 0);
     addParameter(ip, 'Inverse', false, @(x) islogical(x) || isnumeric(x));
     addParameter(ip, 'K', [], @ismatrix);
     addParameter(ip, 'KernelOrder', [], @isvector);
-    parse(ip, Plm, domain, L, varargin{:});
+    parse(ip, Plm, varargin{:});
     Plm = ip.Results.Plm;
     domain = ip.Results.domain;
     L = ip.Results.L;

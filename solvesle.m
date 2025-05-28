@@ -83,7 +83,7 @@
 %   2024/11/20, williameclee@arizona.edu (@williameclee)
 %
 % Last modified by
-%   2025/05/27, williameclee@arizona.edu (@williameclee)
+%   2025/05/28, williameclee@arizona.edu (@williameclee)
 
 function varargout = solvesle(varargin)
     %% Initialisation
@@ -185,7 +185,7 @@ function varargout = solvesle(varargin)
     llnGeoid2 = lovenumber(2, 'LLN geoid', frame);
 
     % Constructing the SLE kernel
-    sleKernel = diag(3 / EARTH_DENSITY * llnFactors ./ (2 * degrees + 1));
+    sleKernel = sparse(diag(3 / EARTH_DENSITY * llnFactors ./ (2 * degrees + 1)));
 
     if doRotationFeedback
         c00c20Factor = 2/3 * EARTH_RADIUS ^ 2 * EARTH_ANGULAR_VELOCITY ^ 2 ...
@@ -220,14 +220,13 @@ function varargout = solvesle(varargin)
     for iIter = 1:maxIter
 
         if ~beQuiet
-            waitbar(iIter / maxIter, wbar, ...
+            waitbar((iIter - 1) / maxIter, wbar, ...
                 sprintf('Solving SLE iteratively, (%d/%d)', iIter, maxIter));
 
             if getappdata(wbar, 'canceling')
-                delete(wbar);
+                close(wbar);
                 error(sprintf('%s:ProcessCancelledByUser', upper(mfilename)), ...
                 'Processing cancelled');
-                return
             end
 
         end
@@ -288,7 +287,7 @@ function varargout = solvesle(varargin)
         varargout = {rslLoadPlm, [], gmsl(:), []};
 
         if ~beQuiet
-            delete(wbar);
+            close(wbar);
         end
 
         return

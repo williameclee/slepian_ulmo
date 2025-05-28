@@ -98,7 +98,7 @@
 %   2025/03/18, williameclee@arizona.edu (@williameclee)
 %
 % Last modified by
-%   2025/05/27, williameclee@arizona.edu (@williameclee)
+%   2025/05/28, williameclee@arizona.edu (@williameclee)
 
 function varargout = solvedegree1(varargin)
     %% Initialisation
@@ -184,12 +184,12 @@ function [coeffs, dates] = ...
 
     %% Preparing/preallocating variables
     waitbar(0, wbar, 'Preparing kernels and variables');
+    gracePlmt = permute(gracePlmt, [2, 3, 1]); % timefirst -> traditional
 
     if getappdata(wbar, 'canceling')
         delete(wbar);
-        warning(sprintf('%s:ProcessCancelledByUser', upper(mfilename)), ...
+        error(sprintf('%s:ProcessCancelledByUser', upper(mfilename)), ...
         'Processing cancelled');
-        return
     end
 
     % Whether to also reestimate C20
@@ -202,9 +202,10 @@ function [coeffs, dates] = ...
         coeffsId = [coeffsId; 4];
     end
 
+    % Note: Converting to SINGLE does not work because it is not compatible with the sparse SLE kernel
     oceanKernelSle = kernelcp_new(Lsle, oceanDomain, ...
         "BeQuiet", beQuiet);
-    landKernelSle = eye(size(oceanKernelSle)) - oceanKernelSle;
+    landKernelSle = eye(size(oceanKernelSle), "single") - oceanKernelSle;
     coeffsKernel = ...
         oceanKernelSle(2:1 + length(coeffsId), 2:1 + length(coeffsId));
     [~, ~, ~, ~, ~, oceanFunPlm] = ...
@@ -212,25 +213,54 @@ function [coeffs, dates] = ...
     kernelOrder = kernelorder(Lsle);
 
     %% Solving the degree-1 coefficients
-    % Decently fast, no need to use parfor
-    % Using partfor may run into issues with RAM
-    for iDate = 1:length(dates)
-        waitbar(iDate / length(dates), wbar, ...
-            sprintf('Solving degree-1 coefficients (%d/%d)', iDate, length(dates)));
+    maxIter = 5;
+    gracePlmtSize = size(gracePlmt);
+    gracePlmtFlatSize = [prod(gracePlmtSize(1:2)), gracePlmtSize(3)];
+
+    graceNoUnknownPlmt = gracePlmt;
+    graceNoUnknownPlmt = reshape(graceNoUnknownPlmt, gracePlmtFlatSize);
+    graceNoUnknownPlmt(2 * gracePlmtSize(1) + (2:1 + length(coeffsId)), :) = 0;
+    graceNoUnknownPlmt = reshape(graceNoUnknownPlmt, gracePlmtSize);
+    graceNoUnknownOceanPlmt = localise(graceNoUnknownPlmt, ...
+        "L", Lsle, "K", oceanKernelSle);
+    graceNoUnknownOceanPlmt = reshape(graceNoUnknownOceanPlmt, gracePlmtFlatSize);
+    oceanCoeffsNoUnkown = ...
+        graceNoUnknownOceanPlmt(2 * gracePlmtSize(1) + (2:1 + length(coeffsId)), :);
+
+    for iIter = 1:maxIter
+        waitbar((iIter - 1) / maxIter, wbar, ...
+        'Iteratively solving degree-1 coefficients');
 
         if getappdata(wbar, 'canceling')
-            delete(wbar);
+            close(wbar);
             error(sprintf('%s:ProcessCancelledByUser', upper(mfilename)), ...
-            'Processing cancelled');
-            return
+            'Computation cancelled');
         end
 
-        coeffs(iDate, :) = ...
-            solvedegree1Iter(squeeze(gracePlmt(iDate, :, 3:4)), ...
-            oceanDomain, Lsle, coeffsKernel, coeffsId, ...
-            oceanKernelSle, landKernelSle, oceanFunPlm, kernelOrder, ...
-            method);
+        landPlmt = localise(gracePlmt, "L", Lsle, "K", landKernelSle);
+
+        switch method
+            case 'fingerprint'
+                oceanPlmt = ...
+                    solvesle(landPlmt, [], Lsle, oceanDomain, ...
+                    "OceanKernel", oceanKernelSle, "OceanFunction", oceanFunPlm, ...
+                    "KernelOrder", kernelOrder, ...
+                    "RotationFeedback", true, "BeQuiet", true);
+                % oceanPlmt = oceanPlmt(1:addmup(Lsle), :, :); % Truncate to original L
+                oceanPlmt = reshape(oceanPlmt, gracePlmtFlatSize);
+                oceanCoeffs = oceanPlmt(2 * addmup(Lsle) + coeffsId, :);
+            case 'uniform'
+                barystaticLoad = squeeze(-landPlmt(1, 3, :) / oceanFunPlm(1, 3));
+                oceanCoeffs = barystaticLoad' .* oceanKernelSle(2:length(coeffsId) + 1, 1);
+        end
+
+        coeffs = coeffsKernel \ (oceanCoeffs - oceanCoeffsNoUnkown);
+        gracePlmt = reshape(gracePlmt, gracePlmtFlatSize);
+        gracePlmt(coeffsId, :) = coeffs;
+        gracePlmt = reshape(gracePlmt, gracePlmtSize);
     end
+
+    coeffs = coeffs'; % traditional -> timefirst
 
     %% Postprocessing and output
     waitbar(1, wbar, 'Postprocessing results');
@@ -257,42 +287,7 @@ function [coeffs, dates] = ...
             squeeze(giaPlmt(:, 4, 3));
     end
 
-    delete(wbar);
-
-end
-
-% Iteratively through each month to solve the degree-1 coefficients
-function [coeffs, graceSph] = ...
-        solvedegree1Iter(graceSph, oceanDomain, Lsle, coeffsKernel, coeffsId, ...
-        oceanKernelSle, landKernelSle, oceanFunSph, kernelOrder, method)
-    maxIter = 5;
-
-    graceNoUnknownSph = graceSph;
-    graceNoUnknownSph(coeffsId) = 0;
-    graceNoUnknownLclSph = ...
-        localise(graceNoUnknownSph, oceanDomain, Lsle, "K", oceanKernelSle);
-    oceanCoeffsNoUnkown = graceNoUnknownLclSph(coeffsId);
-
-    for iIter = 1:maxIter
-        landSph = localise(graceSph, oceanDomain, Lsle, "K", landKernelSle);
-
-        switch method
-            case 'fingerprint'
-                oceanSph = ...
-                    solvesle(landSph, [], Lsle, oceanDomain, ...
-                    "OceanKernel", oceanKernelSle, "OceanFunction", oceanFunSph, ...
-                    "KernelOrder", kernelOrder, ...
-                    "RotationFeedback", true, "BeQuiet", true);
-                oceanSph = oceanSph(1:addmup(Lsle), :); % Truncate to original L
-                oceanCoeffs = oceanSph(coeffsId);
-            case 'uniform'
-                barystaticLoad = -landSph(1, 1) / oceanFunSph(1, 1);
-                oceanCoeffs = barystaticLoad * oceanKernelSle(2:length(coeffsId) + 1, 1);
-        end
-
-        coeffs = coeffsKernel \ (oceanCoeffs - oceanCoeffsNoUnkown);
-        graceSph(coeffsId) = coeffs;
-    end
+    close(wbar);
 
 end
 
