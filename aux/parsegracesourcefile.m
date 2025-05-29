@@ -11,7 +11,7 @@
 %   2025/05/20, williameclee@arizona.edu (@williameclee)
 %
 % Last modified by
-%   2025/05/21, williameclee@arizona.edu (@williameclee)
+%   2025/05/28, williameclee@arizona.edu (@williameclee)
 
 function varargout = parsegracesourcefile(dataPath)
     %% Loading data
@@ -65,9 +65,9 @@ function varargout = parsegracesourcefile(dataPath)
 
     %% Computing the dates
     startDate = datetime(data{8}{1}, ...
-        "InputFormat", 'yyyyMMdd.hhmm', "Format", 'yyyy/MM/dd HH:mm');
+        "InputFormat", 'yyyyMMdd.HHmm', "Format", 'yyyy/MM/dd HH:mm');
     endDate = datetime(data{9}{1}, ...
-        "InputFormat", 'yyyyMMdd.hhmm', "Format", 'yyyy/MM/dd HH:mm');
+        "InputFormat", 'yyyyMMdd.HHmm', "Format", 'yyyy/MM/dd HH:mm');
     meanDate = mean([startDate, endDate]);
 
     varargout = {gravitySph, gravityStdSph, meanDate, [startDate, endDate]};
