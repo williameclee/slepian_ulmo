@@ -116,7 +116,7 @@
 %   printed to the log file instead.
 %
 % Last modified by
-%   2025/05/27, williameclee@arizona.edu (@williameclee)
+%   2025/05/28, williameclee@arizona.edu (@williameclee)
 %   2022/05/18, charig@email.arizona.edu (@harig00)
 %   2020/11/09, lashokkumar@arizona.edu
 %   2019/03/18, mlubeck@email.arizona.edu
@@ -184,18 +184,20 @@ function varargout = grace2plmt_new(varargin)
     %% Post-processing and formatting
     % Recalculate degree 1 coefficients
     if iscell(redoDeg1)
-        [myDeg1, ~, ~] = solvedegree1(Pcenter, Rlevel, redoDeg1{:});
-        myDeg1 = myDeg1 - mean(myDeg1, 1);
-
-        myDeg1 = convertgravity(myDeg1, 'SD', unit, ...
-            "InputFormat", 'L', "L", 1);
+        [myDeg1, myDeg1Std, ~] = ...
+            solvedegree1(Pcenter, Rlevel, redoDeg1{:}, "Unit", unit);
 
         gracePlmt(:, 2, 3) = myDeg1(:, 1);
         gracePlmt(:, 3, 3) = myDeg1(:, 2);
         gracePlmt(:, 3, 4) = myDeg1(:, 3);
 
-        if size(gracePlmt, 2) == 4
-            gracePlmt(:, 4, 3) = myDeg1(:, 4);
+        graceStdPlmt(:, 2, 3) = myDeg1Std(:, 1);
+        graceStdPlmt(:, 3, 3) = myDeg1Std(:, 2);
+        graceStdPlmt(:, 3, 4) = myDeg1Std(:, 3);
+
+        if beQuiet <= 1
+            fprintf('%s replaced degree 1 coefficients with SOLVEDEGREE1\n', ...
+                upper(mfilename))
         end
 
     end

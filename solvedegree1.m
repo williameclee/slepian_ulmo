@@ -158,7 +158,6 @@ end
 % Heart of the programme
 function [coeffs, coeffStds, dates] = ...
         solvedegree1Core(pcenter, rlevel, Ldata, Ltruncation, Lsle, rwGad, giaModel, includeC20, oceanDomain, method, beQuiet)
-    assignin('base', "callers", dbstack) % DEBUG
     %% Loading data
     wbar = waitbar(0, 'Loading GRACE data', ...
         "Name", upper(mfilename), "CreateCancelBtn", 'setappdata(gcbf,''canceling'',1)');
@@ -257,6 +256,8 @@ function [coeffs, coeffStds, dates] = ...
                     "OceanKernel", oceanKernelSle, "OceanFunction", oceanFunPlm, ...
                     "KernelOrder", kernelOrder, ...
                     "RotationFeedback", true, "BeQuiet", true);
+                oceanPlmt = localise(oceanPlmt, "L", Lsle, "K", oceanKernelSle);
+                oceanStdPlmt = localise(oceanStdPlmt, "L", Lsle, "K", oceanKernelSle, "IsError", true);
                 oceanCoeffs = extractcoeffs(oceanPlmt, coeffLocs);
                 oceanCoeffStds = extractcoeffs(oceanStdPlmt, coeffLocs);
             case 'uniform'
@@ -308,7 +309,7 @@ function varargout = parseinputs(inputs)
     deOpt.Pcenter = 'CSR';
     deOpt.Rlevel = 'RL06';
     dfOpt.Ldata = 60;
-    dfOpt.Ltruncation = 45;
+    dfOpt.Ltruncation = [];
     dfOpt.Lsle = 96;
     dfOpt.GiaModel = 'ice6gd';
     dfOpt.OceanDomain = GeoDomain('alloceans', "Buffer", 0.5); % Sun et al. (2016)
@@ -324,7 +325,7 @@ function varargout = parseinputs(inputs)
     addOptional(ip, 'Ldata', dfOpt.Ldata, ...
         @(x) isscalar(x) && isnumeric(x) && x > 0);
     addOptional(ip, 'Ltruncation', dfOpt.Ltruncation, ...
-        @(x) isscalar(x) && isnumeric(x) && x > 0);
+        @(x) (isscalar(x) && isnumeric(x) && x > 0) || isempty(x));
     addOptional(ip, 'Lsle', dfOpt.Lsle, ...
         @(x) isscalar(x) && isnumeric(x) && x > 0);
     addOptional(ip, 'GiaModel', dfOpt.GiaModel, ...
@@ -359,7 +360,7 @@ function varargout = parseinputs(inputs)
     pcenter = ip.Results.Pcenter;
     rlevel = ip.Results.Rlevel;
     Ldata = ip.Results.Ldata;
-    Ltruncation = ip.Results.Ltruncation;
+    Ltruncation = conddefval(ip.Results.Ltruncation, Ldata);
     Lsle = ip.Results.Lsle;
     giaModel = ip.Results.GiaModel;
     oceanDomain = ip.Results.OceanDomain;
@@ -393,7 +394,7 @@ function [outputPath, outputFile, deg1Id] = ...
     gadFlag = '';
 
     if replaceWGad
-        gadFlag = 'GAD';
+        gadFlag = 'GAD-';
     end
 
     includeC20Flag = '';
@@ -410,11 +411,11 @@ function [outputPath, outputFile, deg1Id] = ...
     end
 
     productId = sprintf('%s%s%d', pcenter, rlevel, Ldata);
-    deg1Id = sprintf('%s-%s%s-Ld%d_Ls%d-%s%s-SD', ...
+    deg1Id = sprintf('%s%s%s-Ld%d_Ls%d-%s%s', ...
         gadFlag, giaModel, includeC20Flag, ...
         Ltruncation, Lsle, oceanDomain.Id, methodFlag);
 
-    outputFile = sprintf('%s_%s.mat', productId, deg1Id);
+    outputFile = sprintf('%s_%s-SD.mat', productId, deg1Id);
 
     outputPath = fullfile(outputFolder, outputFile);
 end
@@ -458,26 +459,6 @@ function output = formatoutput(coeffs, coeffStds, dates, timelim, unit, nOut, pr
     end
 
     output = {coeffs, coeffStds, dates, gracePlmt};
-
-end
-
-% Make sure the plm has the right degree
-function plm = ensureplmdegree(plm, L)
-
-    if size(plm, 2) == addmup(L)
-        return
-    end
-
-    if size(plm, 2) > addmup(L)
-        plm = plm(:, 1:addmup(L), :);
-        return
-    end
-
-    [order, degree] = addmon(L);
-    plm(:, 1:addmup(L), 1) = ...
-        repmat(reshape(degree, [1, length(degree)]), [size(plm, 1), 1]);
-    plm(:, 1:addmup(L), 2) = ...
-        repmat(reshape(order, [1, length(degree)]), [size(plm, 1), 1]);
 
 end
 

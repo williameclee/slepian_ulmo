@@ -221,7 +221,7 @@ function varargout = solvesle(varargin)
 
         if ~beQuiet
             waitbar((iIter - 1) / maxIter, wbar, ...
-                sprintf('Solving SLE iteratively, (%d/%d)', iIter, maxIter));
+                sprintf('Solving SLE iteratively (%d/%d)', iIter, maxIter));
 
             if getappdata(wbar, 'canceling')
                 delete(wbar);

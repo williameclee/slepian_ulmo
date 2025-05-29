@@ -33,7 +33,7 @@
 %   2024/11/20, williameclee@arizona.edu (@williameclee)
 %
 % Last modified by
-%   2025/05/28, williameclee@arizona.edu (@williameclee)
+%   2025/05/29, williameclee@arizona.edu (@williameclee)
 
 function [plm, K] = localise(plm, varargin)
     ip = inputParser;
@@ -111,11 +111,10 @@ function [plm, K] = localise(plm, varargin)
 
     if isempty(K)
         K = kernelcp_new(L, domain);
+    end
 
-        if isInverted
-            K = eye(size(K)) - K;
-        end
-
+    if isInverted
+        K = eye(size(K)) - K;
     end
 
     if ~isError

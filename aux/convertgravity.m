@@ -10,7 +10,7 @@
 %   2025/05/22, williameclee@arizona.edu (@williameclee)
 %
 % Last modified by
-%   2025/05/26, williameclee@arizona.edu (@williameclee)
+%   2025/05/28, williameclee@arizona.edu (@williameclee)
 
 function output = convertgravity(varargin)
     %% Initialisation
@@ -94,7 +94,7 @@ function grav = pot2grav(pot, equatorRadius, inputFmt, timeDim)
 
 end
 
-function sd = pot2sd(pot, L, avgDensity, inputFmt, timeDim)
+function sd = pot2sd(pot, degree, avgDensity, inputFmt, timeDim)
 
     switch inputFmt
         case 'lmcosi'
@@ -112,8 +112,9 @@ function sd = pot2sd(pot, L, avgDensity, inputFmt, timeDim)
 
             end
 
-            lovenum = lovenums('Wahr', degree);
-            lovenum = reshape(lovenum(:, 2), size(degree));
+            lovenum = lovenumber(degree, 'loadinggravitationalpotential');
+            % lovenum = lovenums('Wahr', degree);
+            % lovenum = reshape(lovenum(:, 2), size(degree));
 
             convFactor = avgDensity / 3 .* (2 * degree + 1) ./ (1 + lovenum);
 
@@ -155,8 +156,9 @@ function pot = sd2pot(sd, degree, avgDensity, inputFmt, timeDim)
 
             end
 
-            lovenum = lovenums('Wahr', degree);
-            lovenum = reshape(lovenum(:, 2), size(degree));
+            lovenum = lovenumber(degree, 'loadinggravitationalpotential');
+            % lovenum = lovenums('Wahr', degree);
+            % lovenum = reshape(lovenum(:, 2), size(degree));
 
             convFactor = 3 / avgDensity .* (1 + lovenum) ./ (2 * degree + 1);
 
@@ -177,8 +179,9 @@ function pot = sd2pot(sd, degree, avgDensity, inputFmt, timeDim)
 
         case 'cosi'
         case 'L'
-            lovenum = lovenums('Wahr', degree);
-            lovenum = lovenum(:, 2);
+            lovenum = lovenumber(degree, 'loadinggravitationalpotential');
+            % lovenum = lovenums('Wahr', degree);
+            % lovenum = lovenum(:, 2);
             convFactor = 3 / avgDensity .* (1 + lovenum) ./ (2 * degree + 1);
             pot = sd .* convFactor;
     end

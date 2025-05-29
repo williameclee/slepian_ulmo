@@ -292,8 +292,8 @@ function [aod1bPlmt, aod1bStdPlmt, dates] = ...
     if ~isempty(timelim)
         isValidTime = dates >= timelim(1) & dates <= timelim(2);
         dates = dates(isValidTime);
-        aod1bPlmt = aod1bPlmt(:, :, isValidTime);
-        aod1bStdPlmt = aod1bStdPlmt(:, :, isValidTime);
+        aod1bPlmt = aod1bPlmt(isValidTime, :, :);
+        aod1bStdPlmt = aod1bStdPlmt(isValidTime, :, :);
     end
 
     if ~isempty(Loutput)
