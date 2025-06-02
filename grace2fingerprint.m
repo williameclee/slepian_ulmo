@@ -42,7 +42,7 @@
 %   2024/11/20, williameclee@arizona.edu (@williameclee)
 %
 % Last modified by
-%   2025/05/29, williameclee@arizona.edu (@williameclee)
+%   2025/06/01, williameclee@arizona.edu (@williameclee)
 
 function [rslLoadPlmt, rslLoadStdPlmt, dates] = grace2fingerprint(varargin)
     %% Parsing inputs
@@ -120,10 +120,10 @@ function [rslLoadPlmt, rslLoadStdPlmt, dates] = ...
     % Only replace for l >= 2 (see TN-13)
     if rwGad
         [gacPlmt, ~] = aod1b2plmt(product{1:2}, 'GAC', Lsle, ...
-            "OutputFormat", 'timefirst', "BeQuiet", beQuiet);
+            "TimeRange", dates, "OutputFormat", 'timefirst', "BeQuiet", beQuiet);
         gacPlmt = ensureplmdegree(gacPlmt, Lsle);
         [gadPlmt, ~] = aod1b2plmt(product{1:2}, 'GAD', Lsle, ...
-            "OutputFormat", 'timefirst', "BeQuiet", beQuiet);
+            "TimeRange", dates, "OutputFormat", 'timefirst', "BeQuiet", beQuiet);
         gadPlmt = ensureplmdegree(gadPlmt, Lsle);
         gracePlmt(:, 3:end, 3:4) = gracePlmt(:, 3:end, 3:4) ...
             + gacPlmt(:, 3:end, 3:4) - gadPlmt(:, 3:end, 3:4);

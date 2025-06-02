@@ -41,7 +41,9 @@
 %       Data type: char
 %   TimeRange - Time range of the output
 %       When specified, the output will be truncated to the specified time
-%       range.
+%       range. If the input has two elements, it is interpreted as the 
+%       start and end of the time range; if the input has more than two 
+%       elements, it is interpreted as a list of time stamps.
 %       The default time range is [] (all available data).
 %       Data type: datetime | ([numeric])
 %   TimeFormat - Format of the output time
@@ -116,7 +118,7 @@
 %   printed to the log file instead.
 %
 % Last modified by
-%   2025/05/28, williameclee@arizona.edu (@williameclee)
+%   2025/06/01, williameclee@arizona.edu (@williameclee)
 %   2022/05/18, charig@email.arizona.edu (@harig00)
 %   2020/11/09, lashokkumar@arizona.edu
 %   2019/03/18, mlubeck@email.arizona.edu
@@ -184,8 +186,15 @@ function varargout = grace2plmt_new(varargin)
     %% Post-processing and formatting
     % Recalculate degree 1 coefficients
     if iscell(redoDeg1)
-        [myDeg1, myDeg1Std, ~] = ...
+        [myDeg1, myDeg1Std, myDeg1Dates] = ...
             solvedegree1(Pcenter, Rlevel, redoDeg1{:}, "Unit", unit);
+
+        if size(myDeg1, 1) > size(gracePlmt, 1)
+            [~, isValidTime] = ismember(myDeg1Dates, dates);
+            isValidTime = isValidTime > 0;
+            myDeg1 = myDeg1(isValidTime, :);
+            myDeg1Std = myDeg1Std(isValidTime, :);
+        end
 
         gracePlmt(:, 2, 3) = myDeg1(:, 1);
         gracePlmt(:, 3, 3) = myDeg1(:, 2);

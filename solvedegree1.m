@@ -97,7 +97,7 @@
 %   2025/03/18, williameclee@arizona.edu (@williameclee)
 %
 % Last modified by
-%   2025/05/28, williameclee@arizona.edu (@williameclee)
+%   2025/05/29, williameclee@arizona.edu (@williameclee)
 
 function varargout = solvedegree1(varargin)
     %% Initialisation
@@ -238,7 +238,7 @@ function [coeffs, coeffStds, dates] = ...
 
     for iIter = 1:maxIter
         waitbar((iIter - 1) / maxIter, wbar, ...
-        'Iteratively solving degree-1 coefficients');
+        sprintf('Solving degree-1 coefficients iteratively (%d/%d)', iIter, maxIter));
 
         if getappdata(wbar, 'canceling')
             delete(wbar);

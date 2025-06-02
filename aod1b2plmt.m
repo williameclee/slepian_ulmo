@@ -32,7 +32,9 @@
 %       The default field is 'SD'.
 %   TimeRange - Time range of the output
 %       When specified, the output will be truncated to the specified time
-%       range.
+%       range. If the input has two elements, it is interpreted as the 
+%       start and end of the time range; if the input has more than two 
+%       elements, it is interpreted as a list of time stamps.
 %       The default time range is [] (all available data).
 %       Data type: datetime | ([numeric])
 %   TimeFormat - Format of the output time
@@ -79,7 +81,7 @@
 %   GRACEDEG1, GRACEDEG2, PLM2POT, GRACE2PLMT (GRACE2PLMT_NEW)
 %
 % Last modified by
-%   2025/05/21, williameclee@arizona.edu (@williameclee)
+%   2025/06/01, williameclee@arizona.edu (@williameclee)
 %   2014/02/27, charig@princeton.edu
 %   2011/05/17, fjsimons@alum.mit.edu
 
@@ -209,7 +211,7 @@ function varargout = parseinputs(varargin)
     addOptional(ip, 'Unit', 'SD', ...
         @(x) ischar(validatestring(x, {'POT', 'SD'})));
     addOptional(ip, 'TimeRange', [], ...
-        @(x) ((isdatetime(x) || isnumeric(x)) && length(x) == 2) || isempty(x));
+        @(x) (isdatetime(x) || isnumeric(x)) || isempty(x));
     addParameter(ip, 'OutputFormat', 'timefirst', ... % to be consistent with grace2plmt_new
         @(x) ischar(validatestring(x, {'timefirst', 'traditional'})));
     addParameter(ip, 'TimeFormat', 'datenum', ...
@@ -222,7 +224,7 @@ function varargout = parseinputs(varargin)
         @(x) (isnumeric(x) || islogical(x)) && isscalar(x));
 
     if iscell(varargin{1})
-        varargin = [varargin{1}{:}, varargin(2:end)];
+        varargin = [varargin{1}{1:2}, varargin(2:end)];
     end
 
     parse(ip, varargin{:});
@@ -290,10 +292,22 @@ function [aod1bPlmt, aod1bStdPlmt, dates] = ...
         outputFmt, timeFmt)
 
     if ~isempty(timelim)
-        isValidTime = dates >= timelim(1) & dates <= timelim(2);
+
+        isValidTime = false(size(dates));
+
+        if length(timelim) == 2
+            isValidTime = dates >= timelim(1) & dates <= timelim(2);
+        end
+
+        if length(timelim) ~= 2 || ~any(isValidTime)
+            [~, isValidTime] = ismember(timelim, dates);
+            isValidTime = isValidTime > 0;
+        end
+
         dates = dates(isValidTime);
         aod1bPlmt = aod1bPlmt(isValidTime, :, :);
         aod1bStdPlmt = aod1bStdPlmt(isValidTime, :, :);
+
     end
 
     if ~isempty(Loutput)
