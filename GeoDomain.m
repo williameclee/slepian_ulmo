@@ -45,7 +45,7 @@
 %   SPHAREA
 %
 % Last modified by
-%   2021/08/27, williameclee@arizona.edu (@williameclee)
+%   2025/06/02, williameclee@arizona.edu (@williameclee)
 
 classdef GeoDomain
 
@@ -118,17 +118,23 @@ classdef GeoDomain
 
         % Longitude and latitude arrays
         function varargout = Lonlat(obj, varargin)
-            p = inputParser;
-            addOptional(p, 'LonOrigin', [], ...
+            ip = inputParser;
+            addOptional(ip, 'LonOrigin', [], ...
                 @(x) isnumeric(x) && isscalar(x));
-            addParameter(p, 'RotateBack', false, ...
+            addParameter(ip, 'RotateBack', false, ...
                 @istruefalse);
-            addParameter(p, 'Anchors', false, ...
+            addParameter(ip, 'Anchors', false, ...
                 @istruefalse);
-            parse(p, varargin{:});
-            lonOrigin = p.Results.LonOrigin;
-            rotateBack = logical(p.Results.RotateBack);
-            addAnchors = logical(p.Results.Anchors);
+            addParameter(ip, 'Inverse', false, ...
+                @istruefalse);
+            addParameter(ip, 'OutputFormat', 'lonlat', ...
+                @(x) ischar(validatestring(x, {'lonlat', 'latlon', 'polyshape'})));
+            parse(ip, varargin{:});
+            lonOrigin = ip.Results.LonOrigin;
+            rotateBack = logical(ip.Results.RotateBack);
+            addAnchors = logical(ip.Results.Anchors);
+            inverse = logical(ip.Results.Inverse);
+            outputFmt = ip.Results.OutputFormat;
 
             if rotateBack && ...
                     ~ismember(obj.Domain, {'antarctica', 'arctic'})
@@ -151,8 +157,30 @@ classdef GeoDomain
                     'BeQuiet', true);
             end
 
+            if inverse
+                lonlatP = polyshape(lonlat);
+                boxP = polyshape([-180, 180, 180, -180] + lonOrigin, ...
+                    [-90, -90, 90, 90]);
+                lonlatP = subtract(boxP, lonlatP);
+                lonlat = lonlatP.Vertices;
+            end
+
             if addAnchors
                 lonlat = addanchors(lonlat);
+            end
+
+            lon = lonlat(:, 1);
+            lat = lonlat(:, 2);
+
+            switch outputFmt
+                case 'lonlat'
+                    % Do nothing
+                case 'latlon'
+                    lonlat = [lat, lon];
+                case 'polyshape'
+                    lonlat = polyshape(lonlat);
+                otherwise
+                    error('Invalid output format: %s', outputFmt)
             end
 
             if nargout > 0
@@ -160,11 +188,11 @@ classdef GeoDomain
                 if nargout == 1
                     varargout = {lonlat};
                 elseif nargout == 2
-                    varargout = {lonlat(:, 1), lonlat(:, 2)};
+                    varargout = {lon, lat};
                 elseif nargout == 3
                     varargout = {lonlat, lonc, latc};
                 elseif nargout == 4
-                    varargout = {lonlat(:, 1), lonlat(:, 2), lonc, latc};
+                    varargout = {lon, lat, lonc, latc};
                 else
                     error('Invalid number of outputs')
                 end
@@ -178,13 +206,13 @@ classdef GeoDomain
 
         % Longitude only
         function lon = Lon(obj, varargin)
-            lonlat = obj.Lonlat(varargin{:});
+            lonlat = obj.Lonlat(varargin{:}, "OutputFormat", 'lonlat');
             lon = lonlat(:, 1);
         end
 
         % Latitude only
         function lat = Lat(obj, varargin)
-            lonlat = obj.Lonlat(varargin{:});
+            lonlat = obj.Lonlat(varargin{:}, "OutputFormat", 'lonlat');
             lat = lonlat(:, 2);
         end
 
