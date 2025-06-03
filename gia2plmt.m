@@ -95,7 +95,7 @@
 %       PANGAEA, doi: 10.1594/PANGAEA.932462
 %
 % Last modified by
-%   2025/03/28, williameclee@arizona.edu (@williameclee)
+%   2025/06/02, williameclee@arizona.edu (@williameclee)
 
 function varargout = gia2plmt(varargin)
     %% Initialisation
@@ -119,8 +119,12 @@ function varargout = gia2plmt(varargin)
     if ~isempty(L)
 
         if size(lmcosiM, 1) < addmup(L)
-            warning('SLEPIAN:gia2plmt:truncation', ...
-                'Model %s resolution lower than the requested degree %d', model, L);
+
+            if ~beQuiet
+                warning('SLEPIAN:gia2plmt:truncation', ...
+                    'Model %s resolution lower than the requested degree %d', model, L);
+            end
+
             [lmcosiM(1:addmup(L), 2), lmcosiM(1:addmup(L), 1)] = addmon(L);
         else
             lmcosiM = lmcosiM(1:addmup(L), :);
@@ -380,9 +384,9 @@ function plotgiamap(GIAt, time, deltaYear, model, outputField)
     title(sprintf('Model: %s', model))
 
     switch outputField
-        case 'massdensity'
+        case {'massdensity', 'SD'}
             cLabel = 'Surface mass density [kg/m^2]';
-        case 'geoid'
+        case {'geoid', 'POT'}
             cLabel = 'Geoid rate [m/s]';
     end
 

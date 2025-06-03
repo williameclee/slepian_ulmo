@@ -25,7 +25,7 @@
 %   'North America'
 %
 % Last modified by
-%   2024/08/27, williameclee@arizona.edu (@williameclee)
+%   2025/06/03, williameclee@arizona.edu (@williameclee)
 
 function domainName = domainname(varargin)
     p = inputParser;
@@ -79,9 +79,9 @@ function domainName = domainname(varargin)
                 case 'abbrevation'
                     domainName = 'Global';
                 case 'short'
-                    domainName = 'All oceans';
+                    domainName = 'Global mean';
                 case 'long'
-                    domainName = 'All oceans';
+                    domainName = 'Global mean';
             end
 
         case 'atlantic'
